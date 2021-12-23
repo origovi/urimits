@@ -90,22 +90,23 @@ inline bool Urimits::isLoopClosed(const Path &path) const {
  * O(n²), n=max(this->leftPath.size(), this->rightPath.size())
  */
 bool Urimits::anyIntersection(const Path &path1, const Path &path2) const {
-  if (path1.size() < 2 and path2.size() < 2) return false;
-
-  // check for intersections within the same trace
+  
+  // Check for intersections within the same trace
   if (pathIntersectsWithItself(path1) or pathIntersectsWithItself(path2)) return true;
+  
 
-  // check for intersections between traces
-  Pos left_ant = this->allCones[path1.coneIndex()];
-  Pos right_ant = this->allCones[path2.coneIndex()];
+  // Check for intersections between traces
+  if (path1.size() < 2 or path2.size() < 2) return false;
 
   int rightSize = path2.size() - 1;
   int leftSize = path1.size() - 1;
 
+  Pos left_ant = this->allCones[path1.coneIndex()];
   Path left_copy = path1.before();
-  for (int i = 0; i < leftSize; ++i) {
+  while (!left_copy.empty()) {
+    Pos right_ant = this->allCones[path2.coneIndex()];
     Path right_copy = path2.before();
-    for (int j = 0; j < rightSize; ++j) {
+    while (!right_copy.empty()) {
       if (Pos::intersect(left_ant, this->allCones[left_copy.coneIndex()], right_ant, this->allCones[right_copy.coneIndex()])) return true;
       right_ant = this->allCones[right_copy.coneIndex()];
       right_copy = right_copy.before();
