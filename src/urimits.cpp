@@ -45,7 +45,7 @@ void Urimits::run(const dv_msgs::ConeArray::ConstPtr &data, const bool &leftOrRi
   computeTraceWithCorrection(*shortSecond, *shortFirst, !leftOrRightFirst, this->max_trace_length);
   this->indexesToExclude.clear();
   computeTraceWithCorrection(*second, *first, !leftOrRightFirst, 1e5);
-  if (this->leftLoopClosed and this->rightLoopClosed and this->leftPath.size() >= 3 and this->rightPath.size() >= 3 and !anyIntersection()) {
+  if (this->leftPath.size() >= 3 and this->rightPath.size() >= 3 and isLoopClosed(this->leftPath) and isLoopClosed(this->rightPath) and !anyIntersection(this->leftPath, this->rightPath)) {
     this->trackClosedOneTime = true;
     this->trackClosed = true;
   }
@@ -59,7 +59,7 @@ void Urimits::publishData(const ros::Publisher &tlPub, const ros::Publisher &loo
     //loopPub.publish(*tls);
     tlPub.publish(*(tls.first));
   }
-  else if (!this->trackClosedOneTime) {
+  else if (!this->trackClosedOneTime and !anyIntersection(this->shortLeftPath, this->shortRightPath)) {
     ROS_WARN("TLs PUBLISHED");
     tlPub.publish(*(tls.second));
   }
@@ -76,13 +76,12 @@ void Urimits::reset() {
   this->shortLeftPath.clear();
   this->rightPath.clear();
   this->shortRightPath.clear();
-  this->leftLoopClosed = this->rightLoopClosed = false;
   this->trackClosed = false;
 }
 
-inline bool Urimits::isLoopClosed(const State &state) const {
-  if (state.path.size() < 3) return false;
-  return state.path.first().coneIndex() == state.path.coneIndex();
+inline bool Urimits::isLoopClosed(const Path &path) const {
+  if (path.size() < 3) return false;
+  return path.first().coneIndex() == path.coneIndex();
 }
 
 /**
@@ -90,22 +89,22 @@ inline bool Urimits::isLoopClosed(const State &state) const {
  * within themselves
  * O(n²), n=max(this->leftPath.size(), this->rightPath.size())
  */
-bool Urimits::anyIntersection() const {
-  if (this->leftPath.size() < 2 and this->rightPath.size() < 2) return false;
+bool Urimits::anyIntersection(const Path &path1, const Path &path2) const {
+  if (path1.size() < 2 and path2.size() < 2) return false;
 
   // check for intersections within the same trace
-  if (pathIntersectsWithItself(this->leftPath) or pathIntersectsWithItself(this->rightPath)) return true;
+  if (pathIntersectsWithItself(path1) or pathIntersectsWithItself(path2)) return true;
 
   // check for intersections between traces
-  Pos left_ant = this->allCones[this->leftPath.coneIndex()];
-  Pos right_ant = this->allCones[this->rightPath.coneIndex()];
+  Pos left_ant = this->allCones[path1.coneIndex()];
+  Pos right_ant = this->allCones[path2.coneIndex()];
 
-  int rightSize = this->rightPath.size() - 1;
-  int leftSize = this->leftPath.size() - 1;
+  int rightSize = path2.size() - 1;
+  int leftSize = path1.size() - 1;
 
-  Path left_copy = this->leftPath.before();
+  Path left_copy = path1.before();
   for (int i = 0; i < leftSize; ++i) {
-    Path right_copy = this->rightPath.before();
+    Path right_copy = path2.before();
     for (int j = 0; j < rightSize; ++j) {
       if (Pos::intersect(left_ant, this->allCones[left_copy.coneIndex()], right_ant, this->allCones[right_copy.coneIndex()])) return true;
       right_ant = this->allCones[right_copy.coneIndex()];
@@ -120,16 +119,10 @@ bool Urimits::anyIntersection() const {
 /**
  * Stopping condition of the trace computing part. Returns true when a longer trace is impossible to compute.
  */
-inline bool Urimits::stopCondition(const int &nextPossibleIndex, const State &state, const bool &leftOrRight, const int &max_num_cones) {
-  if (isLoopClosed(state)) {
-    if (max_num_cones > 1e3) {
-      if (leftOrRight)
-        this->leftLoopClosed = true;
-      else
-        this->rightLoopClosed = true;
-    }
+inline bool Urimits::stopCondition(const int &nextPossibleIndex, const State &state, const int &max_num_cones) const {
+  if (isLoopClosed(state.path))
     return true;
-  } else
+  else
     return nextPossibleIndex == -1 or state.path.size() >= max_num_cones;
 }
 
@@ -143,13 +136,13 @@ void Urimits::computeTrace(Path &output, const bool &leftOrRight, bool isFirst, 
   if (!isFirst)
     actState = stateFromPath(output);
   int nextPossibleIndex = nextConeIndex(actState, leftOrRight and isFirst, !leftOrRight and isFirst);
-  while (!stopCondition(nextPossibleIndex, actState, leftOrRight, max_num_cones)) {
+  while (!stopCondition(nextPossibleIndex, actState, max_num_cones)) {
     updateState(actState, nextPossibleIndex, isFirst);
     isFirst = false;
     nextPossibleIndex = nextConeIndex(actState, leftOrRight and isFirst, !leftOrRight and isFirst);
     //cout << "Num cons " << possibleCones.size() << endl;
   }
-  cout << actState.path << endl;
+  //cout << actState.path << endl;
   output = actState.path;
 }
 
@@ -163,11 +156,11 @@ void Urimits::computeTraceWithCorrection(Path &output, Path &calculatedPath, con
   State actState(Pos(0, 0), Pos(this->first_pseudoPosition_offset, 0), M_PI);
   bool isFirst = true;
   int nextPossibleIndex = nextConeIndex(actState, leftOrRight, !leftOrRight);
-  while (!stopCondition(nextPossibleIndex, actState, leftOrRight, max_num_cones)) {
+  while (!stopCondition(nextPossibleIndex, actState, max_num_cones)) {
     if (calculatedPath.containsCone(nextPossibleIndex)) {
       State possibleState = actState;
       this->indexesToExclude.insert(nextPossibleIndex);
-      cout << "COLISION" << endl;
+      //cout << "COLISION" << endl;
       updateState(possibleState, nextPossibleIndex, isFirst);
       int next2PossibleIndex = nextConeIndex(possibleState, false, false);
       if (next2PossibleIndex != -1) {
@@ -188,7 +181,7 @@ void Urimits::computeTraceWithCorrection(Path &output, Path &calculatedPath, con
     nextPossibleIndex = nextConeIndex(actState, false, false);
     //cout << "Num cons " << possibleCones.size() << endl;
   }
-  cout << actState.path << endl;
+  //cout << actState.path << endl;
   output = actState.path;
 }
 

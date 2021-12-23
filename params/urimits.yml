@@ -3,7 +3,7 @@ first_pseudoPosition_offset:    0.1     # float [m]
 
 # Search
 max_num_cones_to_consider:      10      # int
-min_angle_between_3_cones:      0.53    # float [rad]
+min_angle_between_3_cones:      0.4    # float [rad]
 max_trace_length:               4       # int   [num]
 
 # Heuristic

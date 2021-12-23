@@ -85,7 +85,7 @@ class Urimits {
   void computeTrace(Path &, const bool &, bool, const int &);
   void computeTraceWithCorrection(Path &output, Path &calculatedPath, const bool &, const int &);
   int nextConeIndex(const State &actState, const bool &firstLeft, const bool &firstRight) const;
-  inline bool isLoopClosed(const State &state) const;
+  inline bool isLoopClosed(const Path &path) const;
   void updateState(State &stateToUpdate, const int &nextConeIndex, const bool &isFirst) const;
   bool segmentIntersectsWithPath(const int &c1, const int &c2, const Path &path) const;
   bool pathIntersectsWithItself(const Path &path) const;
@@ -93,8 +93,8 @@ class Urimits {
   float getHeuristic(const Pos &, const State &, const bool &, const bool &) const;
   list<int> getPossibleCones(const State &) const;
   pair<dv_msgs::ConeArrayOrdered*, dv_msgs::ConeArrayOrdered*> getTLs() const;
-  inline bool stopCondition(const int &nextPossibleIndex, const State &state, const bool &leftOrRight, const int &max_num_cones);
-  bool anyIntersection() const;
+  inline bool stopCondition(const int &nextPossibleIndex, const State &state, const int &max_num_cones) const;
+  bool anyIntersection(const Path &path1, const Path &path2) const;
 
  public:
   // CONSTRUCTOR
