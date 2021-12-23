@@ -93,25 +93,22 @@ bool Urimits::anyIntersection(const Path &path1, const Path &path2) const {
   
   // Check for intersections within the same trace
   if (pathIntersectsWithItself(path1) or pathIntersectsWithItself(path2)) return true;
-  
 
   // Check for intersections between traces
   if (path1.size() < 2 or path2.size() < 2) return false;
 
-  int rightSize = path2.size() - 1;
-  int leftSize = path1.size() - 1;
-
-  Pos left_ant = this->allCones[path1.coneIndex()];
+  int left_ind = path1.coneIndex();
   Path left_copy = path1.before();
   while (!left_copy.empty()) {
-    Pos right_ant = this->allCones[path2.coneIndex()];
+    int right_ind = path2.coneIndex();
     Path right_copy = path2.before();
     while (!right_copy.empty()) {
-      if (Pos::intersect(left_ant, this->allCones[left_copy.coneIndex()], right_ant, this->allCones[right_copy.coneIndex()])) return true;
-      right_ant = this->allCones[right_copy.coneIndex()];
+      if (left_ind == right_ind or left_ind == right_copy.coneIndex() or left_copy.coneIndex() == right_ind or left_copy.coneIndex() == right_copy.coneIndex() or
+          Pos::intersect(this->allCones[left_ind], this->allCones[left_copy.coneIndex()], this->allCones[right_ind], this->allCones[right_copy.coneIndex()])) return true;
+      right_ind = right_copy.coneIndex();
       right_copy = right_copy.before();
     }
-    left_ant = this->allCones[left_copy.coneIndex()];
+    left_ind = left_copy.coneIndex();
     left_copy = left_copy.before();
   }
   return false;
