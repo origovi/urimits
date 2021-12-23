@@ -68,22 +68,23 @@ inline bool Urimits::isLoopClosed(const Path &path) const {
  * O(n²), n=max(this->leftPath.size(), this->rightPath.size())
  */
 bool Urimits::anyIntersection() const {
-  if (this->leftPath.size() < 2 and this->rightPath.size() < 2) return false;
 
-  // check for intersections within the same trace
+  // Check for intersections within the same trace
   if (pathIntersectsWithItself(this->leftPath) or pathIntersectsWithItself(this->rightPath)) return true;
+  
 
-  // check for intersections between traces
-  Pos left_ant = this->allCones[this->leftPath.coneIndex()];
-  Pos right_ant = this->allCones[this->rightPath.coneIndex()];
+  // Check for intersections between traces
+  if (this->leftPath.size() < 2 or this->rightPath.size() < 2) return false;
 
   int rightSize = this->rightPath.size() - 1;
   int leftSize = this->leftPath.size() - 1;
 
+  Pos left_ant = this->allCones[this->leftPath.coneIndex()];
   Path left_copy = this->leftPath.before();
-  for (int i = 0; i < leftSize; ++i) {
+  while (!left_copy.empty()) {
+    Pos right_ant = this->allCones[this->rightPath.coneIndex()];
     Path right_copy = this->rightPath.before();
-    for (int j = 0; j < rightSize; ++j) {
+    while (!right_copy.empty()) {
       if (Pos::intersect(left_ant, this->allCones[left_copy.coneIndex()], right_ant, this->allCones[right_copy.coneIndex()])) return true;
       right_ant = this->allCones[right_copy.coneIndex()];
       right_copy = right_copy.before();
