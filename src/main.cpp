@@ -3,7 +3,6 @@
 #include "urimits.hh"
 
 // Publishers are initialized here
-ros::Publisher tlPub;
 ros::Publisher lapPub;
 
 // TL is initialized here
@@ -16,7 +15,7 @@ void callback_slam(const dv_msgs::ConeArray::ConstPtr &data) {
     auto ti = chrono::system_clock::now();
 
     urimits.run(data, true);
-    urimits.publishData(tlPub, lapPub);
+    urimits.publishData(lapPub);
 
     // Elapsed time
     auto tend = chrono::system_clock::now();
@@ -38,14 +37,12 @@ int main(int argc, char **argv) {
   nh.param<float>("urimits/first_pseudoPosition_offset", urimits.first_pseudoPosition_offset, 0.5);
   nh.param<float>("urimits/dist_ponderation", urimits.dist_ponderation, 0.5);
   nh.param<float>("urimits/min_angle_between_3_cones", urimits.min_angle_between_3_cones, 0.53);
-  nh.param<int>("urimits/max_trace_length", urimits.max_trace_length, 5);
   nh.param<int>("urimits/min_trace_loop_length", urimits.min_trace_loop_length, 10);
 
   // Publisher & Subscriber:
   ros::Subscriber subMap = nh.subscribe("/cones/opt", 1, callback_slam);
   //ros::Subscriber subState = nh.subscribe("/state/car", 1, callback_state);
-  tlPub = nh.advertise<dv_msgs::ConeArrayOrdered>("/cones/ordered", 1);
-  lapPub = nh.advertise<dv_msgs::ConeArrayOrdered>("/cones/loop", 1);
+  lapPub = nh.advertise<dv_msgs::ConeArrayOrdered>("/cones/ordered", 1);
 
   ros::spin();
 }

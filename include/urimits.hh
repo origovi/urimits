@@ -47,11 +47,11 @@ class Urimits {
     }
 
     inline static bool ccw(const Pos &A, const Pos &B, const Pos &C) {
-      return (C.y-A.y) * (B.x-A.x) > (B.y-A.y) * (C.x-A.x);
+      return (C.y - A.y) * (B.x - A.x) > (B.y - A.y) * (C.x - A.x);
     }
     // Return true if line segments AB and CD intersect
     static bool intersect(const Pos &A, const Pos &B, const Pos &C, const Pos &D) {
-      return ccw(A,C,D) != ccw(B,C,D) and ccw(A,B,C) != ccw(A,B,D);
+      return ccw(A, C, D) != ccw(B, C, D) and ccw(A, B, C) != ccw(A, B, D);
     }
 
     // Useful to print a Pos
@@ -73,17 +73,14 @@ class Urimits {
   vector<Pos> allCones;
   dv_msgs::ConeArray data;
   Path leftPath, rightPath;
-  Path shortLeftPath, shortRightPath;
   set<int> indexesToExclude;
-  bool leftLoopClosed, rightLoopClosed;
-  bool trackClosedOneTime, trackClosed;
 
   /////////////////////
   // PRIVATE METHODS //
   /////////////////////
   void reset();
-  void computeTrace(Path &, const bool &, bool, const int &);
-  void computeTraceWithCorrection(Path &output, Path &calculatedPath, const bool &, const int &);
+  void computeTrace(Path &, const bool &, bool);
+  void computeTraceWithCorrection(Path &output, Path &calculatedPath, const bool &);
   int nextConeIndex(const State &actState, const bool &firstLeft, const bool &firstRight) const;
   inline bool isLoopClosed(const Path &path) const;
   void updateState(State &stateToUpdate, const int &nextConeIndex, const bool &isFirst) const;
@@ -92,9 +89,9 @@ class Urimits {
   State stateFromPath(const Path &path) const;
   float getHeuristic(const Pos &, const State &, const bool &, const bool &) const;
   list<int> getPossibleCones(const State &) const;
-  pair<dv_msgs::ConeArrayOrdered*, dv_msgs::ConeArrayOrdered*> getTLs() const;
-  inline bool stopCondition(const int &nextPossibleIndex, const State &state, const int &max_num_cones) const;
-  bool anyIntersection(const Path &path1, const Path &path2) const;
+  dv_msgs::ConeArrayOrdered *getTLs() const;
+  inline bool stopCondition(const int &nextPossibleIndex, const State &state) const;
+  bool anyIntersection() const;
 
  public:
   // CONSTRUCTOR
@@ -105,13 +102,13 @@ class Urimits {
   int max_num_cones_to_consider;
   float first_pseudoPosition_offset;
   float dist_ponderation, min_angle_between_3_cones;
-  int max_trace_length, min_trace_loop_length;
+  int min_trace_loop_length;
 
   ////////////////////
   // PUBLIC METHODS //
   ////////////////////
   void run(const dv_msgs::ConeArray::ConstPtr &, const bool &);
-  void publishData(const ros::Publisher &, const ros::Publisher &) const;
+  void publishData(const ros::Publisher &) const;
 };
 
 #endif
