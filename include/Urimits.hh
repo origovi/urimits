@@ -95,7 +95,7 @@ class Urimits {
   // PUBLIC METHODS //
   ////////////////////
   void run(const dv_msgs::ConeArray &data, const bool &leftOrRightFirst);
-  void publishData(const ros::Publisher &, const ros::Publisher &) const;
+  void publishData(const ros::Publisher &tlPub, const ros::Publisher &loopPub) const;
 };
 
 #endif

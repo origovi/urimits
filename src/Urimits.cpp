@@ -328,7 +328,7 @@ list<int> Urimits::getPossibleCones(const State &actState, const bool &isFirst) 
   list<int>::iterator it = possibleCones.begin();
   while (it != possibleCones.end()) {
     float angle = Pos::angle(actState.v, actState.pos - this->allCones[*it]);
-    if (abs(angle) < this->min_angle_between_3_cones or (isFirst and abs(angle) < 1.6)) {
+    if (abs(angle) < this->min_angle_between_3_cones or (isFirst and this->allCones[*it].x < 0.0)) {
       it = possibleCones.erase(it);
     } else {
       it++;

@@ -23,6 +23,51 @@ void callback_slam(const dv_msgs::ConeArray::ConstPtr &data) {
     ROS_WARN("Urimits ELAPSED TIME: %f ms", elapsed_seconds.count() * 1000);
   }
 }
+#include "dv_msgs/Cone.h"
+#include "geometry_msgs/PoseArray.h"
+
+inline float distSq(const geometry_msgs::Pose &p1, const geometry_msgs::Pose &p2) {
+  return (p1.position.x - p2.position.x) * (p1.position.x - p2.position.x) + (p1.position.y - p2.position.y) * (p1.position.y - p2.position.y);
+}
+// This is the PAU callback
+void callback_pau(const geometry_msgs::PoseArray::ConstPtr &data) {
+  if (not data->poses.empty()) {
+    dv_msgs::ConeArray ca;
+    ca.header = data->header;
+    list<int> aux;
+    for (int i = 0; i < data->poses.size(); ++i) {
+      aux.push_back(i);
+    }
+    // auto it = aux.begin();
+    // while (it != aux.end()) {
+    //   auto it2 = aux.begin();
+    //   while (it2 != aux.end()) {
+    //     if (*it != *it2) {
+    //       if (distSq(data->poses[*it], data->poses[*it2]) < 0.25) {
+    //         it2 = aux.erase(it2);
+    //       } else
+    //         it2++;
+    //     } else
+    //       it2++;
+    //   }
+    //   it++;
+    // }
+    for (auto it = aux.begin(); it != aux.end(); it++) {
+      dv_msgs::Cone c;
+      c.x = data->poses[*it].position.x;
+      c.y = data->poses[*it].position.y;
+      ca.cones.push_back(c);
+    }
+    auto ti = chrono::system_clock::now();
+    urimits.run(ca, true);
+    urimits.publishData(tlPub, lapPub);
+
+    // Elapsed time
+    auto tend = chrono::system_clock::now();
+    chrono::duration<double> elapsed_seconds = tend - ti;
+    ROS_WARN("Urimits ELAPSED TIME: %f ms", elapsed_seconds.count() * 1000);
+  }
+}
 
 // Main
 int main(int argc, char **argv) {
@@ -46,7 +91,8 @@ int main(int argc, char **argv) {
 
   // Publisher & Subscriber:
   ros::Subscriber subMap = nh.subscribe("/cones/opt", 1, callback_slam);
-  
+  ros::Subscriber subPau = nh.subscribe("/slam/positions", 1, callback_pau);
+  //ros::Subscriber subState = nh.subscribe("/state/car", 1, callback_state);
   tlPub = nh.advertise<dv_msgs::ConeArrayOrdered>("/cones/ordered", 1);
   lapPub = nh.advertise<dv_msgs::ConeArrayOrdered>("/cones/loop", 1);
 
