@@ -1,4 +1,4 @@
-#include "urimits.hh"
+#include "Urimits.hh"
 
 // Namespaces
 using namespace std;
@@ -39,12 +39,18 @@ void Urimits::run(const dv_msgs::ConeArray::ConstPtr &data, const bool &leftOrRi
     second = &this->leftPath;
     shortSecond = &this->shortLeftPath;
   }
-  computeTrace(*shortFirst, leftOrRightFirst, true, this->max_trace_length);
+
+  // Compute the short TLs
+  if (this->compute_short_tls) {
+    computeTrace(*shortFirst, leftOrRightFirst, true, this->max_trace_length);
+    computeTraceWithCorrection(*shortSecond, *shortFirst, !leftOrRightFirst, this->max_trace_length);
+    this->indexesToExclude.clear();
+  }
+
+  // Compute the loop TLs
   computeTrace(*first, leftOrRightFirst, true, 1e5);
-  //computeTrace(*second, !leftOrRightFirst, true);
-  computeTraceWithCorrection(*shortSecond, *shortFirst, !leftOrRightFirst, this->max_trace_length);
-  this->indexesToExclude.clear();
   computeTraceWithCorrection(*second, *first, !leftOrRightFirst, 1e5);
+
   if (this->leftPath.size() >= 3 and this->rightPath.size() >= 3 and isLoopClosed(this->leftPath) and isLoopClosed(this->rightPath) and !anyIntersection(this->leftPath, this->rightPath)) {
     this->trackClosedOneTime = true;
     this->trackClosed = true;
@@ -52,19 +58,19 @@ void Urimits::run(const dv_msgs::ConeArray::ConstPtr &data, const bool &leftOrRi
 }
 
 void Urimits::publishData(const ros::Publisher &tlPub, const ros::Publisher &loopPub) const {
-  pair<dv_msgs::ConeArrayOrdered*, dv_msgs::ConeArrayOrdered*> tls = getTLs();
-  //tlPub.publish(*tls);
   if (this->trackClosed) {
+    dv_msgs::ConeArrayOrdered* tls = getTLs(this->leftPath, this->rightPath);
     ROS_WARN("LOOP PUBLISHED");
     //loopPub.publish(*tls);
-    tlPub.publish(*(tls.first));
+    tlPub.publish(*tls);
+    delete tls;
   }
-  else if (!this->trackClosedOneTime and !anyIntersection(this->shortLeftPath, this->shortRightPath)) {
+  else if (this->compute_short_tls and !this->trackClosedOneTime and !anyIntersection(this->shortLeftPath, this->shortRightPath)) {
+    dv_msgs::ConeArrayOrdered* tls = getTLs(this->shortLeftPath, this->shortRightPath);
     ROS_WARN("TLs PUBLISHED");
-    tlPub.publish(*(tls.second));
+    tlPub.publish(*tls);
+    delete tls;
   }
-  delete tls.first;
-  delete tls.second;
 }
 
 /////////////////////
@@ -129,7 +135,7 @@ inline bool Urimits::stopCondition(const int &nextPossibleIndex, const State &st
  * best possible cone, until a stopping condition is found.
  * O(n²)
  */
-void Urimits::computeTrace(Path &output, const bool &leftOrRight, bool isFirst, const int &max_num_cones) {
+void Urimits::computeTrace(Path &output, const bool &leftOrRight, bool isFirst, const int &max_num_cones) const {
   State actState(Pos(0, 0), Pos(this->first_pseudoPosition_offset, 0), M_PI);
   if (!isFirst)
     actState = stateFromPath(output);
@@ -328,48 +334,26 @@ list<int> Urimits::getPossibleCones(const State &actState) const {
 /**
  * Returns the computed tracklimits in dv_msgs format
  */
-pair<dv_msgs::ConeArrayOrdered*, dv_msgs::ConeArrayOrdered*> Urimits::getTLs() const {
-  dv_msgs::ConeArrayOrdered *longTLs = new dv_msgs::ConeArrayOrdered;
-  dv_msgs::ConeArrayOrdered *shortTLs = new dv_msgs::ConeArrayOrdered;
+dv_msgs::ConeArrayOrdered* Urimits::getTLs(const Path &left, const Path &right) const {
+  dv_msgs::ConeArrayOrdered *tls = new dv_msgs::ConeArrayOrdered;
 
-  // Loop TLs
-  if (this->leftPath.size() >= 2) {
-    Path left_copy = this->leftPath;
-    longTLs->blue.resize(left_copy.size());
-    for (int i = 0; i < longTLs->blue.size(); ++i) {
-      longTLs->blue[i] = this->data.cones[left_copy.coneIndex()];
+  if (left.size() >= 2) {
+    Path left_copy = left;
+    tls->blue.resize(left_copy.size());
+    for (int i = 0; i < tls->blue.size(); ++i) {
+      tls->blue[i] = this->data.cones[left_copy.coneIndex()];
       left_copy = left_copy.before();
     }
   }
-  if (this->rightPath.size() >= 2) {
-    Path right_copy = this->rightPath;
-    longTLs->yellow.resize(right_copy.size());
-    for (int i = 0; i < longTLs->yellow.size(); ++i) {
-      longTLs->yellow[i] = this->data.cones[right_copy.coneIndex()];
+  if (right.size() >= 2) {
+    Path right_copy = right;
+    tls->yellow.resize(right_copy.size());
+    for (int i = 0; i < tls->yellow.size(); ++i) {
+      tls->yellow[i] = this->data.cones[right_copy.coneIndex()];
       right_copy = right_copy.before();
     }
   }
-
-  // Short TLs
-  if (this->shortLeftPath.size() >= 2) {
-    Path left_copy = this->shortLeftPath;
-    shortTLs->blue.resize(left_copy.size());
-    for (int i = 0; i < shortTLs->blue.size(); ++i) {
-      shortTLs->blue[i] = this->data.cones[left_copy.coneIndex()];
-      left_copy = left_copy.before();
-    }
-  }
-  if (this->shortRightPath.size() >= 2) {
-    Path right_copy = this->shortRightPath;
-    shortTLs->yellow.resize(right_copy.size());
-    for (int i = 0; i < shortTLs->yellow.size(); ++i) {
-      shortTLs->yellow[i] = this->data.cones[right_copy.coneIndex()];
-      right_copy = right_copy.before();
-    }
-  }
-  longTLs->header = this->data.header;
-  longTLs->state = this->data.state;
-  shortTLs->header = this->data.header;
-  shortTLs->state = this->data.state;
-  return make_pair(longTLs, shortTLs);
+  tls->header = this->data.header;
+  tls->state = this->data.state;
+  return tls;
 }
