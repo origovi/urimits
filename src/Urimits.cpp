@@ -17,11 +17,13 @@ Urimits::Urimits() {
  * publishes the tracklimits, and if it detects a the whole track, it
  * also saves the whole tracklimits.
  */
-void Urimits::run(const dv_msgs::ConeArray::ConstPtr &data, const bool &leftOrRightFirst) {
-  if (data->cones.size() == 0) return;
+void Urimits::run(const dv_msgs::ConeArray &data, const bool &leftOrRightFirst) {
+  if (data.cones.size() == 0) return;
+  //if (data->cones.size() == 0) return;
 
   reset();
-  this->data = *data;
+  this->data = data;
+  //this->data = *data;
   this->allCones.resize(this->data.cones.size());
   for (int i = 0; i < this->data.cones.size(); i++) {
     this->allCones[i] = Pos(this->data.cones[i].x, this->data.cones[i].y);
@@ -52,11 +54,11 @@ void Urimits::run(const dv_msgs::ConeArray::ConstPtr &data, const bool &leftOrRi
   computeTraceWithCorrection(*second, *first, !leftOrRightFirst, 1e5);
 
   // Validate the traces
-  if (validTLs(this->leftTrace, this->rightTrace, true)) {
+  if (debug or validTLs(this->leftTrace, this->rightTrace, true)) {
     this->loopTLsValid = true;
     this->loopTLsValidOneTime = true;
   }
-  if (this->compute_short_tls and !this->loopTLsValidOneTime and validTLs(this->shortLeftTrace, this->shortRightTrace, false)) {
+  if (this->compute_short_tls and (debug or (!this->loopTLsValidOneTime and validTLs(this->shortLeftTrace, this->shortRightTrace, false)))) {
     this->shortTLsValid = true;
   }
 }
@@ -233,7 +235,7 @@ float Urimits::getHeuristic(const Pos &nextPos, const State &actState, const boo
   // DIST HEURISTIC
   float dist = sqrt(Pos::distSq(nextPos, actState.pos));
   float distHeuristic = dist / 5;
-  if (dist > this->max_radius_to_next_cone) distHeuristic *= 10;
+  //if (dist > this->max_radius_to_next_cone) distHeuristic *= 10;
 
   // ANGLE HEURISTIC
   float possibleAngle = Pos::angle(actState.v, actState.pos - nextPos);
@@ -257,7 +259,7 @@ float Urimits::getHeuristic(const Pos &nextPos, const State &actState, const boo
  * Returns the index of the cone with a smaller heuristic with respect to actState
  */
 int Urimits::nextConeIndex(const State &actState, const bool &firstLeft, const bool &firstRight) const {
-  list<int> possibleNextCones = getPossibleCones(actState);
+  list<int> possibleNextCones = getPossibleCones(actState, firstLeft or firstRight);
   if (possibleNextCones.empty()) return -1;
   priority_queue<pair<float, int>, vector<pair<float, int>>, greater<>> nextConesQueue;
   for (const int &possibleNextCone : possibleNextCones) {
@@ -304,13 +306,14 @@ bool Urimits::traceIntersectsWithItself(const Trace &trace) const {
 /**
  * Gets all the cone indexes which are candidates for next cone
  */
-list<int> Urimits::getPossibleCones(const State &actState) const {
+list<int> Urimits::getPossibleCones(const State &actState, const bool &isFirst) const {
   list<int> possibleCones;
   priority_queue<pair<float, int>, vector<pair<float, int>>, greater<>> indexes_ordered_by_dist;
   for (int i = 0; i < this->allCones.size(); i++) {
     // only add cone if its not in the exclude list and not in the trace
     if (this->indexesToExclude.find(i) == this->indexesToExclude.end() and (!actState.trace.containsCone(i) or (actState.trace.size() > this->min_trace_loop_length and i == actState.trace.first().coneIndex()))) {
-      indexes_ordered_by_dist.push(make_pair(Pos::distSq(actState.pos, this->allCones[i]), i));
+      float dist2 = Pos::distSq(actState.pos, this->allCones[i]);
+      if (dist2 < this->max_radius_to_next_cone*this->max_radius_to_next_cone) indexes_ordered_by_dist.push(make_pair(dist2, i));
     }
   }
 
@@ -325,7 +328,7 @@ list<int> Urimits::getPossibleCones(const State &actState) const {
   list<int>::iterator it = possibleCones.begin();
   while (it != possibleCones.end()) {
     float angle = Pos::angle(actState.v, actState.pos - this->allCones[*it]);
-    if (abs(angle) < this->min_angle_between_3_cones) {
+    if (abs(angle) < this->min_angle_between_3_cones or (isFirst and abs(angle) < 1.6)) {
       it = possibleCones.erase(it);
     } else {
       it++;

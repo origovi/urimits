@@ -11,11 +11,10 @@ Urimits urimits;
 
 // This is the map callback
 void callback_slam(const dv_msgs::ConeArray::ConstPtr &data) {
-  // First, states and cones must not be empty, and not closed loop
   if (not data->cones.empty()) {
     auto ti = chrono::system_clock::now();
 
-    urimits.run(data, true);
+    urimits.run(*data, true);
     urimits.publishData(tlPub, lapPub);
 
     // Elapsed time
@@ -34,6 +33,7 @@ int main(int argc, char **argv) {
   ros::NodeHandle nh;
 
   nh.param<bool>("urimits/compute_short_tls", urimits.compute_short_tls, false);
+  nh.param<bool>("urimits/debug", urimits.debug, false);
   nh.param<float>("urimits/max_radius_to_next_cone", urimits.max_radius_to_next_cone, 5.2);
   nh.param<int>("urimits/max_num_cones_to_consider", urimits.max_num_cones_to_consider, 10);
   nh.param<float>("urimits/first_pseudoPosition_offset", urimits.first_pseudoPosition_offset, 0.5);
@@ -46,7 +46,7 @@ int main(int argc, char **argv) {
 
   // Publisher & Subscriber:
   ros::Subscriber subMap = nh.subscribe("/cones/opt", 1, callback_slam);
-  //ros::Subscriber subState = nh.subscribe("/state/car", 1, callback_state);
+  
   tlPub = nh.advertise<dv_msgs::ConeArrayOrdered>("/cones/ordered", 1);
   lapPub = nh.advertise<dv_msgs::ConeArrayOrdered>("/cones/loop", 1);
 

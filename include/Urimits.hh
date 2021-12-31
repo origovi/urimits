@@ -59,7 +59,7 @@ class Urimits {
   bool segmentIntersectsWithTrace(const int &c1, const int &c2, const Trace &trace) const;
   bool traceIntersectsWithItself(const Trace &trace) const;
   State stateFromTrace(const Trace &trace) const;
-  list<int> getPossibleCones(const State &actState) const;
+  list<int> getPossibleCones(const State &actState, const bool &isFirst) const;
   inline bool stopCondition(const int &nextPossibleIndex, const State &state, const int &max_num_cones) const;
   bool anyIntersection(const Trace &trace1, const Trace &trace2) const;
   Pos centroidOfTrace(Trace trace) const;
@@ -73,7 +73,7 @@ class Urimits {
   // PARAMS //
   ////////////
   
-  bool compute_short_tls;
+  bool compute_short_tls, debug;
 
   // First
   float first_pseudoPosition_offset;
@@ -94,7 +94,7 @@ class Urimits {
   ////////////////////
   // PUBLIC METHODS //
   ////////////////////
-  void run(const dv_msgs::ConeArray::ConstPtr &, const bool &);
+  void run(const dv_msgs::ConeArray &data, const bool &leftOrRightFirst);
   void publishData(const ros::Publisher &, const ros::Publisher &) const;
 };
 
