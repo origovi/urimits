@@ -12,3 +12,7 @@ dist_ponderation:               0.6     # float [_], assume angle_ponderation = 
 
 # Closure
 min_trace_loop_length:          10      # int   [num]
+
+# Validation Conditions
+min_percentage_of_cones:        90.0    # float [%]
+max_distSq_betw_trace_centrd:   25.0    # float [m²]

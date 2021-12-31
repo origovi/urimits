@@ -1,5 +1,6 @@
 <launch>
   <node name="urimits" pkg="urimits" type="urimits" output="screen">
+    <param name="compute_short_tls" value="true"/>
     <rosparam command="load" file="$(find urimits)/params/urimits.yml" />
     <rosparam command="load" file="$(find urimits)/params/urimits_short.yml" />
   </node>

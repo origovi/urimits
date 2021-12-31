@@ -17,7 +17,7 @@ add_library(${PROJECT_NAME}_libs
   src/Urimits.cpp
   include/Urimits.hh
   include/Pos.hh
-  include/Path.hh
+  include/Trace.hh
 )
 
 add_dependencies(${PROJECT_NAME} dv_msgs_generate_messages_cpp)

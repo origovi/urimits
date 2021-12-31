@@ -1,5 +1,5 @@
-#ifndef PATH_HH
-#define PATH_HH
+#ifndef TRACE_HH
+#define TRACE_HH
 
 #include <ros/ros.h>
 
@@ -8,7 +8,7 @@
 
 using namespace std;
 
-class Path {
+class Trace {
  private:
   struct Connection {
     int coneIndex;
@@ -21,7 +21,7 @@ class Path {
       return coneIndex == _coneIndex || (before ? before->containsCone(_coneIndex) : false);
     }
 
-    // Useful to print a Path
+    // Useful to print a Trace
     friend ostream &operator<<(ostream &os, const Connection &conn) {
       if (conn.before != nullptr) {
         os << *(conn.before);
@@ -34,14 +34,14 @@ class Path {
   shared_ptr<Connection> p;
 
   // CONSTRUCTORS
-  Path(shared_ptr<Connection> p)
+  Trace(shared_ptr<Connection> p)
       : p(p) {}
 
  public:
-  Path()
+  Trace()
       : p(nullptr) {}
 
-  Path(const int &x) {
+  Trace(const int &x) {
     p = make_shared<Connection>(x, nullptr);
   }
 
@@ -56,30 +56,30 @@ class Path {
 
   int size() const {
     int res = 0;
-    if (not empty()) res = 1 + Path(p->before).size();
+    if (not empty()) res = 1 + Trace(p->before).size();
     return res;
   }
 
-  Path before() const {
+  Trace before() const {
     ROS_ASSERT(not empty());
-    return Path(p->before);
+    return Trace(p->before);
   }
 
-  Path first() const {
+  Trace first() const {
     ROS_ASSERT(not empty());
     shared_ptr<Connection> lastNotEmpty = p;
     while (lastNotEmpty->before != nullptr) {
       lastNotEmpty = lastNotEmpty->before;
     }
-    return Path(lastNotEmpty);
+    return Trace(lastNotEmpty);
   }
 
   // CANT RUN IF NOT SURE THE CONE IS IN THIS
-  Path getConeIndexPath(const int &index) {
+  Trace getConeIndexTrace(const int &index) {
     if (coneIndex() == index)
       return *this;
     else
-      return Path(p->before).getConeIndexPath(index);
+      return Trace(p->before).getConeIndexTrace(index);
   }
 
   const int &coneIndex() const {
@@ -103,10 +103,10 @@ class Path {
     p = nullptr;
   }
 
-  // Useful to print a Path
-  friend ostream &operator<<(ostream &os, const Path &path) {
-    os << "Path(";
-    if (!path.empty()) os << *(path.p);
+  // Useful to print a Trace
+  friend ostream &operator<<(ostream &os, const Trace &trace) {
+    os << "Trace(";
+    if (!trace.empty()) os << *(trace.p);
     return os << ")";
   }
 };

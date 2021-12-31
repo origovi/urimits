@@ -11,7 +11,7 @@
 #include "dv_msgs/CarState.h"
 #include "dv_msgs/ConeArray.h"
 #include "dv_msgs/ConeArrayOrdered.h"
-#include "Path.hh"
+#include "Trace.hh"
 #include "Pos.hh"
 #include "visualization_msgs/Marker.h"
 
@@ -26,7 +26,7 @@ class Urimits {
     Pos pos;
     Pos v;
     float angle;
-    Path path;
+    Trace trace;
     State(Pos pos, Pos v, float angle) : pos(pos), v(v), angle(angle) {}
   };
 
@@ -35,41 +35,61 @@ class Urimits {
   ////////////////
   vector<Pos> allCones;
   dv_msgs::ConeArray data;
-  Path leftPath, rightPath;
-  Path shortLeftPath, shortRightPath;
+  Trace leftTrace, rightTrace;
+  Trace shortLeftTrace, shortRightTrace;
   set<int> indexesToExclude;
   bool leftLoopClosed, rightLoopClosed;
-  bool trackClosedOneTime, trackClosed;
+  bool loopTLsValidOneTime, loopTLsValid, shortTLsValid;
 
   /////////////////////
   // PRIVATE METHODS //
   /////////////////////
+
+  // Main Methods
   void reset();
-  void computeTrace(Path &output, const bool &leftOrRight, bool isFirst, const int &max_num_cones) const;
-  void computeTraceWithCorrection(Path &output, Path &calculatedPath, const bool &leftOrRight, const int &max_num_cones);
-  int nextConeIndex(const State &actState, const bool &firstLeft, const bool &firstRight) const;
-  inline bool isLoopClosed(const Path &path) const;
-  void updateState(State &stateToUpdate, const int &nextConeIndex, const bool &isFirst) const;
-  bool segmentIntersectsWithPath(const int &c1, const int &c2, const Path &path) const;
-  bool pathIntersectsWithItself(const Path &path) const;
-  State stateFromPath(const Path &path) const;
+  void computeTrace(Trace &output, const bool &leftOrRight, bool isFirst, const int &max_num_cones) const;
+  void computeTraceWithCorrection(Trace &output, Trace &calculatedTrace, const bool &leftOrRight, const int &max_num_cones);
   float getHeuristic(const Pos &nextPos, const State &actState, const bool &firstLeft, const bool &firstRight) const;
+  dv_msgs::ConeArrayOrdered *getTLs(Trace left, Trace right) const;
+  
+  // Aux Methods
+  int nextConeIndex(const State &actState, const bool &firstLeft, const bool &firstRight) const;
+  inline bool isLoopClosed(const Trace &trace) const;
+  void updateState(State &stateToUpdate, const int &nextConeIndex, const bool &isFirst) const;
+  bool segmentIntersectsWithTrace(const int &c1, const int &c2, const Trace &trace) const;
+  bool traceIntersectsWithItself(const Trace &trace) const;
+  State stateFromTrace(const Trace &trace) const;
   list<int> getPossibleCones(const State &actState) const;
-  dv_msgs::ConeArrayOrdered *getTLs(const Path &left, const Path &right) const;
   inline bool stopCondition(const int &nextPossibleIndex, const State &state, const int &max_num_cones) const;
-  bool anyIntersection(const Path &path1, const Path &path2) const;
+  bool anyIntersection(const Trace &trace1, const Trace &trace2) const;
+  Pos centroidOfTrace(Trace trace) const;
+  bool validTLs(const Trace &left, const Trace &right, bool checkingLoop) const;
 
  public:
   // CONSTRUCTOR
   Urimits();
 
-  // PARAMS
+  ////////////
+  // PARAMS //
+  ////////////
+  
   bool compute_short_tls;
-  float max_radius_to_next_cone;
-  int max_num_cones_to_consider;
+
+  // First
   float first_pseudoPosition_offset;
-  float dist_ponderation, min_angle_between_3_cones;
+
+  // Search
+  int max_num_cones_to_consider;
+  float min_angle_between_3_cones;
+
+  // Heuristic
+  float max_radius_to_next_cone, dist_ponderation;
+
+  // Closure
   int max_trace_length, min_trace_loop_length;
+
+  // Validation Conditions
+  float min_percentage_of_cones, max_distSq_betw_trace_centrd;
 
   ////////////////////
   // PUBLIC METHODS //

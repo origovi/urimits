@@ -39,6 +39,8 @@ int main(int argc, char **argv) {
   nh.param<float>("urimits/first_pseudoPosition_offset", urimits.first_pseudoPosition_offset, 0.5);
   nh.param<float>("urimits/dist_ponderation", urimits.dist_ponderation, 0.5);
   nh.param<float>("urimits/min_angle_between_3_cones", urimits.min_angle_between_3_cones, 0.53);
+  nh.param<float>("urimits/min_percentage_of_cones", urimits.min_percentage_of_cones, 90.0);
+  nh.param<float>("urimits/max_distSq_betw_trace_centrd", urimits.max_distSq_betw_trace_centrd, 25.0);
   nh.param<int>("urimits/max_trace_length", urimits.max_trace_length, 1e5);
   nh.param<int>("urimits/min_trace_loop_length", urimits.min_trace_loop_length, 10);
 

@@ -13,6 +13,13 @@ struct Pos {
   Pos operator-(const Pos &p) const {
     return Pos(x - p.x, y - p.y);
   }
+  Pos operator+(const Pos &p) const {
+    return Pos(x + p.x, y + p.y);
+  }
+  template<typename T>
+  Pos operator/(const T &num) const {
+    return Pos(x/num, y/num);
+  }
   // Compute the angle between two vectors
   static float angle(const Pos &ab, const Pos &cb) {
     float dot = ab.x * cb.x + ab.y * cb.y;
