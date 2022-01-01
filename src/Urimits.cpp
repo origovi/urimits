@@ -91,7 +91,7 @@ void Urimits::reset() {
   this->shortTLsValid = false;
 }
 
-inline bool Urimits::isLoopClosed(const Trace &trace) const {
+inline bool Urimits::isLoopClosed(const Trace &trace) {
   if (trace.size() < 3) return false;
   return trace.first().coneIndex() == trace.coneIndex();
 }
@@ -135,24 +135,112 @@ inline bool Urimits::stopCondition(const int &nextPossibleIndex, const State &st
     return nextPossibleIndex == -1 or state.trace.size() >= max_num_cones;
 }
 
+// Urimits::State Urimits::getFirstState(const bool &leftOrRight) const {
+//   State actState(Pos(0, 0), Pos(this->first_pseudoPosition_offset, 0), M_PI);
+//   return actState;
+// }
+
+list<Urimits::HeurInd> Urimits::getNextConeIndexes(const State &actState, const bool &leftFirst, const bool &rightFirst) const {
+  list<HeurInd> possibleCones;
+  priority_queue<HeurInd, vector<HeurInd>, greater<>> indexes_ordered_by_heur;
+  for (int i = 0; i < this->allCones.size(); i++) {
+    // Only consider cone if its not in the exclude list and not in the trace
+    if (this->indexesToExclude.find(i) == this->indexesToExclude.end() and (!actState.trace.containsCone(i) or (actState.trace.size() > this->min_trace_loop_length and i == actState.trace.first().coneIndex()))) {
+      float angle = abs(actState.getAngleWith(this->allCones[i]));
+      // Only add the cone if:
+      // - The angle is higher than a threshold
+      // - The distance is lower than a threshold
+      // - If first, x coord must be positive (discard rear facing cones)
+      if (angle > this->min_angle_between_3_cones and ((!leftFirst and !rightFirst) or this->allCones[i].x >= 0.0) and Pos::distSq(actState.pos, this->allCones[i]) < this->max_distSq_to_next_cone) {
+        indexes_ordered_by_heur.push(make_pair(getHeuristic(i, actState, leftFirst, rightFirst), i));
+      }
+    }
+  }
+
+  // We will only return the cones that:
+  // - Are in the this->max_num_cones_to_consider best cones
+  // - Its heuristic is at most this->max_percentage_most_coneHeur % higher than the best one
+  int nItems = min(this->max_num_cones_to_consider, int(indexes_ordered_by_heur.size()));
+  float bestHeur;
+  for (int i = 0; i < nItems; i++) {
+    HeurInd uriCone = indexes_ordered_by_heur.top();
+    indexes_ordered_by_heur.pop();
+    if (i == 0)
+      bestHeur = uriCone.first;
+    if (((uriCone.first / bestHeur) - 1) * 100 < this->max_percentage_most_coneHeur) {
+      possibleCones.push_back(uriCone);
+    }
+  }
+  return possibleCones;
+}
+
+Urimits::State Urimits::getNextState(const State &actState, const HeurInd &uriCone, const bool &isFirst) const {
+  State nextState = actState;
+  const Pos &nextConePos = this->allCones[uriCone.second];
+
+  //cout << "Actualitzem " << nextConePos << ", " << stateToUpdate.angle * (180 / M_PI) << endl;
+  if (isFirst) {
+    nextState.angle = M_PI;
+    nextState.v = Pos(1, 0);
+  } else {
+    nextState.angle = Pos::angle(nextState.v, nextState.pos - nextConePos);
+    nextState.v = nextConePos - nextState.pos;
+  }
+  nextState.trace.addCone(uriCone.second, uriCone.first, nextState.angle);
+  nextState.pos = nextConePos;
+  return nextState;
+}
+
 /**
  * Computes the first trace of cones, it uses a greedy algorithm with an heuristic, taking at each iteration the
  * best possible cone, until a stopping condition is found.
  * O(n²)
  */
 void Urimits::computeTrace(Trace &output, const bool &leftOrRight, bool isFirst, const int &max_num_cones) const {
-  State actState(Pos(0, 0), Pos(this->first_pseudoPosition_offset, 0), M_PI);
-  if (!isFirst)
-    actState = stateFromTrace(output);
-  int nextPossibleIndex = nextConeIndex(actState, leftOrRight and isFirst, !leftOrRight and isFirst);
-  while (!stopCondition(nextPossibleIndex, actState, max_num_cones)) {
-    updateState(actState, nextPossibleIndex, isFirst);
+  priority_queue<State, vector<State>, function<bool(State, State)>> LA_CUA(State::compare);
+  list<Trace> endTraces;
+  if (isFirst)
+    LA_CUA.push(State(Pos(0, 0), Pos(this->first_pseudoPosition_offset, 0), M_PI));
+  else
+    LA_CUA.push(stateFromTrace(output));
+  // Generate the bests traces
+  while (!LA_CUA.empty()) {
+    State actState = LA_CUA.top();
+    LA_CUA.pop();
+    list<HeurInd> nextCone = getNextConeIndexes(actState, leftOrRight and isFirst, !leftOrRight and isFirst);
+    if (nextCone.empty()) {
+      endTraces.push_back(actState.trace);
+    }
+    for (list<HeurInd>::const_iterator it = nextCone.begin(); it != nextCone.end(); ++it) {
+      State nextState = getNextState(actState, *it, isFirst);
+      if (isLoopClosed(nextState.trace))
+        endTraces.push_back(nextState.trace);
+      else
+        LA_CUA.push(nextState);
+    }
     isFirst = false;
-    nextPossibleIndex = nextConeIndex(actState, leftOrRight and isFirst, !leftOrRight and isFirst);
-    //cout << "Num cons " << possibleCones.size() << endl;
+  }
+  // Choose the best trace
+  Trace bestTrace;
+  bool loopClosedBestTrace = false;
+  for (list<Trace>::const_iterator it = endTraces.begin(); it != endTraces.end(); it++) {
+    if (it == endTraces.begin())
+      bestTrace = *it;
+    else {
+      bool loopClosedCandidate = isLoopClosed(*it);
+      if (loopClosedBestTrace == loopClosedCandidate) {
+        if (it->avgHeuristic() < bestTrace.avgHeuristic()) {
+          bestTrace = *it;
+          loopClosedBestTrace = loopClosedCandidate;
+        }
+      } else if (loopClosedCandidate) {
+        bestTrace = *it;
+        loopClosedBestTrace = true;
+      }
+    }
   }
   //cout << actState.trace << endl;
-  output = actState.trace;
+  output = bestTrace;
 }
 
 /**
@@ -220,7 +308,7 @@ void Urimits::updateState(State &stateToUpdate, const int &nextConeIndex, const 
   Pos nextConePos = this->allCones[nextConeIndex];
   stateToUpdate.angle = isFirst ? M_PI : Pos::angle(stateToUpdate.v, stateToUpdate.pos - nextConePos);
   //cout << "Actualitzem " << nextConePos << ", " << stateToUpdate.angle * (180 / M_PI) << endl;
-  stateToUpdate.trace.addCone(nextConeIndex, stateToUpdate.angle);
+  stateToUpdate.trace.addCone(nextConeIndex, 0, stateToUpdate.angle);
   if (isFirst)
     stateToUpdate.v = Pos(1, 0);
   else
@@ -231,11 +319,12 @@ void Urimits::updateState(State &stateToUpdate, const int &nextConeIndex, const 
 /**
  * Returns the heuristic value correspondent to the position we are looking (from our state)
  */
-float Urimits::getHeuristic(const Pos &nextPos, const State &actState, const bool &firstLeft, const bool &firstRight) const {
+float Urimits::getHeuristic(const int &nextIndex, const State &actState, const bool &firstLeft, const bool &firstRight) const {
+  const Pos &nextPos = this->allCones[nextIndex];
   // DIST HEURISTIC
   float dist = sqrt(Pos::distSq(nextPos, actState.pos));
   float distHeuristic = dist / 5;
-  //if (dist > this->max_radius_to_next_cone) distHeuristic *= 10;
+  //if (dist > this->max_distSq_to_next_cone) distHeuristic *= 10;
 
   // ANGLE HEURISTIC
   float possibleAngle = Pos::angle(actState.v, actState.pos - nextPos);
@@ -261,9 +350,9 @@ float Urimits::getHeuristic(const Pos &nextPos, const State &actState, const boo
 int Urimits::nextConeIndex(const State &actState, const bool &firstLeft, const bool &firstRight) const {
   list<int> possibleNextCones = getPossibleCones(actState, firstLeft or firstRight);
   if (possibleNextCones.empty()) return -1;
-  priority_queue<pair<float, int>, vector<pair<float, int>>, greater<>> nextConesQueue;
+  priority_queue<HeurInd, vector<HeurInd>, greater<>> nextConesQueue;
   for (const int &possibleNextCone : possibleNextCones) {
-    nextConesQueue.push(make_pair(getHeuristic(this->allCones[possibleNextCone], actState, firstLeft, firstRight), possibleNextCone));
+    nextConesQueue.push(make_pair(getHeuristic(possibleNextCone, actState, firstLeft, firstRight), possibleNextCone));
   }
   return nextConesQueue.top().second;
 }
@@ -308,12 +397,12 @@ bool Urimits::traceIntersectsWithItself(const Trace &trace) const {
  */
 list<int> Urimits::getPossibleCones(const State &actState, const bool &isFirst) const {
   list<int> possibleCones;
-  priority_queue<pair<float, int>, vector<pair<float, int>>, greater<>> indexes_ordered_by_dist;
+  priority_queue<HeurInd, vector<HeurInd>, greater<>> indexes_ordered_by_dist;
   for (int i = 0; i < this->allCones.size(); i++) {
     // only add cone if its not in the exclude list and not in the trace
     if (this->indexesToExclude.find(i) == this->indexesToExclude.end() and (!actState.trace.containsCone(i) or (actState.trace.size() > this->min_trace_loop_length and i == actState.trace.first().coneIndex()))) {
       float dist2 = Pos::distSq(actState.pos, this->allCones[i]);
-      if (dist2 < this->max_radius_to_next_cone*this->max_radius_to_next_cone) indexes_ordered_by_dist.push(make_pair(dist2, i));
+      if (dist2 < this->max_distSq_to_next_cone * this->max_distSq_to_next_cone) indexes_ordered_by_dist.push(make_pair(dist2, i));
     }
   }
 

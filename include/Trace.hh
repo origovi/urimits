@@ -13,10 +13,11 @@ class Trace {
   struct Connection {
     int coneIndex;
     float angle;
+    float heuristic;
     shared_ptr<Connection> before;
 
-    Connection(const int &coneIndex, shared_ptr<Connection> before)
-        : coneIndex(coneIndex), before(before), angle(M_PI) {}
+    Connection(const int &coneIndex, const float &heuristic, shared_ptr<Connection> before)
+        : coneIndex(coneIndex), before(before), heuristic(heuristic), angle(M_PI) {}
     bool containsCone(const int &_coneIndex) {
       return coneIndex == _coneIndex || (before ? before->containsCone(_coneIndex) : false);
     }
@@ -37,17 +38,19 @@ class Trace {
   Trace(shared_ptr<Connection> p)
       : p(p) {}
 
+  // METHODS
+  float sumHeuristic() const {
+    if (empty()) return 0;
+    return heuristic() + before().sumHeuristic();
+  }
+
  public:
   Trace()
       : p(nullptr) {}
 
-  Trace(const int &x) {
-    p = make_shared<Connection>(x, nullptr);
-  }
-
-  void addCone(const int &coneIndex, const float &angle) {
+  void addCone(const int &coneIndex, const float &heuristic, const float &angle) {
     if (!empty()) p->angle = angle;
-    p = make_shared<Connection>(coneIndex, p);
+    p = make_shared<Connection>(coneIndex, heuristic, p);
   }
 
   bool empty() const {
@@ -90,6 +93,16 @@ class Trace {
   const float &angle() const {
     ROS_ASSERT(not empty());
     return p->angle;
+  }
+
+  const float &heuristic() const {
+    ROS_ASSERT(not empty());
+    return p->heuristic;
+  }
+
+  float avgHeuristic() const {
+    if (empty()) return 1e5;
+    return sumHeuristic()/size();
   }
 
   bool containsCone(const int &coneIndex) const {
