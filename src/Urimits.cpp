@@ -213,8 +213,10 @@ void Urimits::computeTrace(Trace &output, const bool &leftOrRight, bool isFirst,
     }
     for (list<HeurInd>::const_iterator it = nextCone.begin(); it != nextCone.end(); ++it) {
       State nextState = getNextState(actState, *it, isFirst);
-      if (isLoopClosed(nextState.trace))
-        endTraces.push_back(nextState.trace);
+      if (isLoopClosed(nextState.trace)) {
+        output = nextState.trace;
+        return;
+      }
       else
         LA_CUA.push(nextState);
     }
