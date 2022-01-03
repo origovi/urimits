@@ -105,6 +105,13 @@ class Trace {
     return sumHeuristic()/size();
   }
 
+  int numSignChanges(bool wasLastPositive) const {
+    if (empty()) return 0;
+    bool isActualPositive = p->angle >= 0;
+    if (isActualPositive != wasLastPositive) return 1+before().numSignChanges(isActualPositive);
+    else return before().numSignChanges(isActualPositive);
+  }
+
   bool containsCone(const int &coneIndex) const {
     if (empty())
       return false;

@@ -229,7 +229,7 @@ void Urimits::computeTrace(Trace &output, const bool &leftOrRight, bool isFirst,
     else {
       bool loopClosedCandidate = isLoopClosed(*it);
       if (loopClosedBestTrace == loopClosedCandidate) {
-        if (it->avgHeuristic() < bestTrace.avgHeuristic()) {
+        if (it->numSignChanges(true) < bestTrace.numSignChanges(true)) {
           bestTrace = *it;
           loopClosedBestTrace = loopClosedCandidate;
         }
@@ -402,7 +402,7 @@ list<int> Urimits::getPossibleCones(const State &actState, const bool &isFirst) 
     // only add cone if its not in the exclude list and not in the trace
     if (this->indexesToExclude.find(i) == this->indexesToExclude.end() and (!actState.trace.containsCone(i) or (actState.trace.size() > this->min_trace_loop_length and i == actState.trace.first().coneIndex()))) {
       float dist2 = Pos::distSq(actState.pos, this->allCones[i]);
-      if (dist2 < this->max_distSq_to_next_cone * this->max_distSq_to_next_cone) indexes_ordered_by_dist.push(make_pair(dist2, i));
+      if (dist2 < this->max_distSq_to_next_cone) indexes_ordered_by_dist.push(make_pair(dist2, i));
     }
   }
 

@@ -9,7 +9,7 @@ max_percentage_most_coneHeur:   10.0    # float [%], we'll consider the cones wh
                                         # most max_percentage_most_coneHeur % higher of the cone with the lowest heuristic
 
 # Heuristic
-max_distSq_to_next_cone:        28.09   # float [m]
+max_distSq_to_next_cone:        28.09   # float [m²]
 dist_ponderation:               0.6     # float [_], assume angle_ponderation = 1-dist_ponderation
 #meters2rads_ratio:              2.0     # float [_], how many rads are equivalent to 1m in the heuristic
 
