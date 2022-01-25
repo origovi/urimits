@@ -5,6 +5,7 @@
 
 #include <iostream>
 #include <memory>
+#include <list>
 
 using namespace std;
 
@@ -39,10 +40,6 @@ class Trace {
       : p(p) {}
 
   // METHODS
-  float sumHeuristic() const {
-    if (empty()) return 0;
-    return heuristic() + before().sumHeuristic();
-  }
 
  public:
   Trace()
@@ -77,16 +74,33 @@ class Trace {
     return Trace(lastNotEmpty);
   }
 
-  // CANT RUN IF NOT SURE THE CONE IS IN THIS
+  // CANT RUN IF NOT SURE THE CONE IS IN *THIS
   Trace getConeIndexTrace(const int &index) {
-    if (coneIndex() == index)
+    if (index == -1 or coneIndex() == index)
       return *this;
     else
       return Trace(p->before).getConeIndexTrace(index);
   }
 
-  const int &coneIndex() const {
-    ROS_ASSERT(not empty());
+  // CANT RUN IF NOT SURE THE CONE IS IN *THIS
+  Trace getAfterConeIndexTrace(const int &index) {
+    if (index == -1) return Trace();
+    Trace res;
+    list<shared_ptr<Connection>> indexs;
+    shared_ptr<Connection> aux = p;
+    while (aux->coneIndex != index) {
+      indexs.push_front(aux);
+      aux = aux->before;
+    }
+    indexs.push_front(aux);
+    for (auto it = indexs.begin(); it != indexs.end(); ++it) {
+      res.addCone((*it)->coneIndex, (*it)->heuristic, (*it)->angle);
+    }
+    return res;
+  }
+
+  int coneIndex() const {
+    if (empty()) return -1;
     return p->coneIndex;
   }
 
@@ -98,6 +112,16 @@ class Trace {
   const float &heuristic() const {
     ROS_ASSERT(not empty());
     return p->heuristic;
+  }
+
+  float sumAngleDiff() const {
+    if (empty()) return 0.0;
+    return 1-abs(angle() / M_PI)+before().sumAngleDiff();
+  }
+
+  float sumHeuristic() const {
+    if (empty()) return 0.0;
+    return heuristic() + before().sumHeuristic();
   }
 
   float avgHeuristic() const {

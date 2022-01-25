@@ -44,13 +44,13 @@ void Urimits::run(const dv_msgs::ConeArray &data, const bool &leftOrRightFirst) 
 
   // Compute the short TLs
   if (this->compute_short_tls) {
-    computeTrace(*shortFirst, leftOrRightFirst, true, this->max_trace_length);
+    computeTrace(*shortFirst, leftOrRightFirst, false, this->max_trace_length);
     computeTraceWithCorrection(*shortSecond, *shortFirst, !leftOrRightFirst, this->max_trace_length);
     this->indexesToExclude.clear();
   }
 
   // Compute the loop TLs
-  computeTrace(*first, leftOrRightFirst, true, 1e5);
+  computeTrace(*first, leftOrRightFirst, false, 1e5);
   computeTraceWithCorrection(*second, *first, !leftOrRightFirst, 1e5);
 
   // Validate the traces
@@ -135,6 +135,13 @@ inline bool Urimits::stopCondition(const int &nextPossibleIndex, const State &st
     return nextPossibleIndex == -1 or state.trace.size() >= max_num_cones;
 }
 
+/**
+ * Stopping condition of the trace computing part. Returns true when a longer trace is impossible to compute.
+ */
+inline bool Urimits::stopCondition2(const State &actState, const int &max_num_cones) const {
+  return actState.trace.size() >= max_num_cones or isLoopClosed(actState.trace);
+}
+
 // Urimits::State Urimits::getFirstState(const bool &leftOrRight) const {
 //   State actState(Pos(0, 0), Pos(this->first_pseudoPosition_offset, 0), M_PI);
 //   return actState;
@@ -191,58 +198,65 @@ Urimits::State Urimits::getNextState(const State &actState, const HeurInd &uriCo
   return nextState;
 }
 
+float Urimits::getTraceLength(Trace trace) const {
+  if (trace.size() < 2) return 0.0;
+  float res = 0.0;
+  int antConeIndex = trace.coneIndex();
+  trace = trace.before();
+  while (!trace.empty()) {
+    res += Pos::dist(this->allCones[antConeIndex], this->allCones[antConeIndex]);
+    antConeIndex = trace.coneIndex();
+    trace = trace.before();
+  }
+  return res;
+}
+
+float Urimits::getTraceMetric(const Trace &trace) const {
+  return trace.sumAngleDiff();
+}
+
+Urimits::State Urimits::getBestNextCone(const State &actState, const list<HeurInd> &possibleNextCones, const int &max_num_cones, const bool &isFirst) const {
+  State bestState;
+  int firstConeToConsider = actState.trace.coneIndex();
+  //cout << actState.trace.size() << endl;
+  for (const HeurInd &possibleNextCone : possibleNextCones) {
+    State aux = actState;
+    updateState(aux, possibleNextCone.second, isFirst);
+    Trace taux = aux.trace;
+    computeTrace(taux, false, true, max_num_cones-1);
+    if (bestState.trace.empty() or getTraceMetric(bestState.trace.getAfterConeIndexTrace(firstConeToConsider)) > getTraceMetric(taux.getAfterConeIndexTrace(firstConeToConsider))) {
+      bestState = aux;
+    }
+  }
+  return bestState;
+}
+
 /**
  * Computes the first trace of cones, it uses a greedy algorithm with an heuristic, taking at each iteration the
  * best possible cone, until a stopping condition is found.
  * O(n²)
  */
-void Urimits::computeTrace(Trace &output, const bool &leftOrRight, bool isFirst, const int &max_num_cones) const {
-  priority_queue<State, vector<State>, function<bool(State, State)>> LA_CUA(State::compare);
-  list<Trace> endTraces;
-  if (isFirst)
-    LA_CUA.push(State(Pos(0, 0), Pos(this->first_pseudoPosition_offset, 0), M_PI));
-  else
-    LA_CUA.push(stateFromTrace(output));
-  // Generate the bests traces
-  while (!LA_CUA.empty()) {
-    State actState = LA_CUA.top();
-    LA_CUA.pop();
-    list<HeurInd> nextCone = getNextConeIndexes(actState, leftOrRight and isFirst, !leftOrRight and isFirst);
-    if (nextCone.empty()) {
-      endTraces.push_back(actState.trace);
-    }
-    for (list<HeurInd>::const_iterator it = nextCone.begin(); it != nextCone.end(); ++it) {
-      State nextState = getNextState(actState, *it, isFirst);
-      if (isLoopClosed(nextState.trace)) {
-        output = nextState.trace;
-        return;
-      }
-      else
-        LA_CUA.push(nextState);
-    }
+void Urimits::computeTrace(Trace &output, const bool &leftOrRight, bool isRecursive, const int &max_num_cones) const {
+  State actState;
+  bool isFirst;
+  if (output.empty()) {
+    actState = State(Pos(0, 0), Pos(this->first_pseudoPosition_offset, 0), M_PI);
+    isFirst = true;
+  }
+  else {
+    actState = stateFromTrace(output);
     isFirst = false;
   }
-  // Choose the best trace
-  Trace bestTrace;
-  bool loopClosedBestTrace = false;
-  for (list<Trace>::const_iterator it = endTraces.begin(); it != endTraces.end(); it++) {
-    if (it == endTraces.begin())
-      bestTrace = *it;
-    else {
-      bool loopClosedCandidate = isLoopClosed(*it);
-      if (loopClosedBestTrace == loopClosedCandidate) {
-        if (it->numSignChanges(true) < bestTrace.numSignChanges(true)) {
-          bestTrace = *it;
-          loopClosedBestTrace = loopClosedCandidate;
-        }
-      } else if (loopClosedCandidate) {
-        bestTrace = *it;
-        loopClosedBestTrace = true;
-      }
-    }
+  int iniSize = actState.trace.size();
+  list<HeurInd> possibleNextCones = getNextConeIndexes(actState, leftOrRight and isFirst, !leftOrRight and isFirst);
+  while (!possibleNextCones.empty() and !stopCondition2(actState, iniSize+max_num_cones)) {
+    actState = getBestNextCone(actState, possibleNextCones, isRecursive ? max_num_cones : 5, isFirst);
+    isFirst = false;
+    possibleNextCones = getNextConeIndexes(actState, false, false);
   }
+  
   //cout << actState.trace << endl;
-  output = bestTrace;
+  output = actState.trace;
 }
 
 /**
@@ -291,6 +305,7 @@ Urimits::State Urimits::stateFromTrace(const Trace &trace) const {
   State res(Pos(0, 0), Pos(1, 0), M_PI);
   if (!trace.empty()) {
     res.pos = this->allCones[trace.coneIndex()];
+    res.trace = trace;
     Trace beforeTrace = trace.before();
     if (!beforeTrace.empty()) {
       res.v = res.pos - this->allCones[beforeTrace.coneIndex()];

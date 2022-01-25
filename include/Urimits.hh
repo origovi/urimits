@@ -28,6 +28,7 @@ class Urimits {
     Pos v;
     float angle;
     Trace trace;
+    State() {}
     State(Pos pos, Pos v, float angle) : pos(pos), v(v), angle(angle) {}
     inline float getAngleWith(const Pos &conePos) const {
       return Pos::angle(v, pos - conePos);
@@ -62,12 +63,15 @@ class Urimits {
 
   // Main Methods
   void reset();
-  void computeTrace(Trace &output, const bool &leftOrRight, bool isFirst, const int &max_num_cones) const;
+  void computeTrace(Trace &output, const bool &leftOrRight, bool isRecursive, const int &max_num_cones) const;
   void computeTraceWithCorrection(Trace &output, Trace &calculatedTrace, const bool &leftOrRight, const int &max_num_cones);
   float getHeuristic(const int &nextIndex, const State &actState, const bool &firstLeft, const bool &firstRight) const;
   dv_msgs::ConeArrayOrdered *getTLs(Trace left, Trace right) const;
 
   // Aux Methods
+  State getBestNextCone(const State &actState, const list<HeurInd> &possibleNextCones, const int &max_num_cones, const bool &isFirst) const;
+  float getTraceMetric(const Trace &trace) const;
+  float getTraceLength(Trace trace) const;
   list<HeurInd> getNextConeIndexes(const State &actState, const bool &leftFirst, const bool &rightFirst) const;
   State getNextState(const State &actState, const HeurInd &uriCone, const bool &isFirst) const;
   int nextConeIndex(const State &actState, const bool &firstLeft, const bool &firstRight) const;
@@ -78,6 +82,7 @@ class Urimits {
   State stateFromTrace(const Trace &trace) const;
   list<int> getPossibleCones(const State &actState, const bool &isFirst) const;
   inline bool stopCondition(const int &nextPossibleIndex, const State &state, const int &max_num_cones) const;
+  inline bool stopCondition2(const State &actState, const int &max_num_cones) const;
   bool anyIntersection(const Trace &trace1, const Trace &trace2) const;
   Pos centroidOfTrace(Trace trace) const;
   bool validTLs(const Trace &left, const Trace &right, bool checkingLoop) const;

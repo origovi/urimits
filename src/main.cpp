@@ -59,7 +59,7 @@ void callback_pau(const geometry_msgs::PoseArray::ConstPtr &data) {
       ca.cones.push_back(c);
     }
     auto ti = chrono::system_clock::now();
-    urimits.run(ca, true);
+    urimits.run(ca, false);
     urimits.publishData(tlPub, lapPub);
 
     // Elapsed time

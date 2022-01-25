@@ -10,6 +10,9 @@ struct Pos {
   static float distSq(const Pos &c1, const Pos &c2) {
     return (c1.x - c2.x) * (c1.x - c2.x) + (c1.y - c2.y) * (c1.y - c2.y);
   }
+  static float dist(const Pos &c1, const Pos &c2) {
+    return sqrt((c1.x - c2.x) * (c1.x - c2.x) + (c1.y - c2.y) * (c1.y - c2.y));
+  }
   Pos operator-(const Pos &p) const {
     return Pos(x - p.x, y - p.y);
   }
