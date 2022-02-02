@@ -78,6 +78,7 @@ int main(int argc, char **argv) {
   ros::NodeHandle nh;
 
   nh.param<bool>("urimits/compute_short_tls", urimits.compute_short_tls, false);
+  nh.param<bool>("urimits/compute_loop", urimits.compute_loop, false);
   nh.param<bool>("urimits/debug", urimits.debug, false);
   nh.param<float>("urimits/max_radius_to_next_cone", urimits.max_radius_to_next_cone, 5.2);
   nh.param<int>("urimits/max_num_cones_to_consider", urimits.max_num_cones_to_consider, 10);

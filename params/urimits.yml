@@ -1,4 +1,4 @@
-debug:                          true    # bool, specifies whether or not to show the unvalid TLs
+debug:                          false    # bool, specifies whether or not to show the unvalid TLs
 # First
 first_pseudoPosition_offset:    0.01    # float [m]
 

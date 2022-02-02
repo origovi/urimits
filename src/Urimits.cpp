@@ -50,14 +50,17 @@ void Urimits::run(const dv_msgs::ConeArray &data, const bool &leftOrRightFirst) 
   }
 
   // Compute the loop TLs
-  computeTrace(*first, leftOrRightFirst, true, 1e5);
-  computeTraceWithCorrection(*second, *first, !leftOrRightFirst, 1e5);
+  if (this->compute_loop) {
+    computeTrace(*first, leftOrRightFirst, true, 1e5);
+    computeTraceWithCorrection(*second, *first, !leftOrRightFirst, 1e5);
+  }
 
   // Validate the traces
-  if (debug or validTLs(this->leftTrace, this->rightTrace, true)) {
+  if (this->compute_loop and (debug or validTLs(this->leftTrace, this->rightTrace, true))) {
     this->loopTLsValid = true;
     this->loopTLsValidOneTime = true;
   }
+  
   if (this->compute_short_tls and (debug or (!this->loopTLsValidOneTime and validTLs(this->shortLeftTrace, this->shortRightTrace, false)))) {
     this->shortTLsValid = true;
   }
@@ -76,6 +79,14 @@ void Urimits::publishData(const ros::Publisher &tlPub, const ros::Publisher &loo
     tlPub.publish(*tls);
     delete tls;
   }
+}
+
+dv_msgs::ConeArrayOrdered *Urimits::getShortTLs() const {
+  return getTLs(this->shortLeftTrace, this->shortRightTrace);
+}
+
+dv_msgs::ConeArrayOrdered *Urimits::getLoop() const {
+  return getTLs(this->leftTrace, this->rightTrace);
 }
 
 /////////////////////
@@ -201,6 +212,7 @@ Urimits::State Urimits::stateFromTrace(const Trace &trace) const {
   State res(Pos(0, 0), Pos(1, 0), M_PI);
   if (!trace.empty()) {
     res.pos = this->allCones[trace.coneIndex()];
+    res.trace = trace;
     Trace beforeTrace = trace.before();
     if (!beforeTrace.empty()) {
       res.v = res.pos - this->allCones[beforeTrace.coneIndex()];

@@ -51,7 +51,7 @@ class Urimits {
   void computeTraceWithCorrection(Trace &output, Trace &calculatedTrace, const bool &leftOrRight, const int &max_num_cones);
   float getHeuristic(const Pos &nextPos, const State &actState, const bool &firstLeft, const bool &firstRight) const;
   dv_msgs::ConeArrayOrdered *getTLs(Trace left, Trace right) const;
-  
+
   // Aux Methods
   int nextConeIndex(const State &actState, const bool &firstLeft, const bool &firstRight) const;
   inline bool isLoopClosed(const Trace &trace) const;
@@ -73,7 +73,7 @@ class Urimits {
   // PARAMS //
   ////////////
   
-  bool compute_short_tls, debug;
+  bool compute_short_tls, compute_loop, debug;
 
   // First
   float first_pseudoPosition_offset;
@@ -95,6 +95,8 @@ class Urimits {
   // PUBLIC METHODS //
   ////////////////////
   void run(const dv_msgs::ConeArray &data, const bool &leftOrRightFirst);
+  dv_msgs::ConeArrayOrdered *getLoop() const;
+  dv_msgs::ConeArrayOrdered *getShortTLs() const;
   void publishData(const ros::Publisher &tlPub, const ros::Publisher &loopPub) const;
 };
 
