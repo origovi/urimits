@@ -47,20 +47,20 @@ class Urimits {
 
   // Main Methods
   void reset();
-  void computeTrace(Trace &output, const bool &leftOrRight, bool isFirst, const int &max_num_cones) const;
-  void computeTraceWithCorrection(Trace &output, Trace &calculatedTrace, const bool &leftOrRight, const int &max_num_cones);
+  void computeTrace(Trace &output, const bool &leftOrRight, bool isFirst, const bool &isShort) const;
+  void computeTraceWithCorrection(Trace &output, Trace &calculatedTrace, const bool &leftOrRight, const bool &isShort);
   float getHeuristic(const Pos &nextPos, const State &actState, const bool &firstLeft, const bool &firstRight) const;
   dv_msgs::ConeArrayOrdered *getTLs(Trace left, Trace right) const;
 
   // Aux Methods
-  int nextConeIndex(const State &actState, const bool &firstLeft, const bool &firstRight) const;
+  int nextConeIndex(const State &actState, const bool &firstLeft, const bool &firstRight, const bool &isShort) const;
   inline bool isLoopClosed(const Trace &trace) const;
   void updateState(State &stateToUpdate, const int &nextConeIndex, const bool &isFirst) const;
   bool segmentIntersectsWithTrace(const int &c1, const int &c2, const Trace &trace) const;
   bool traceIntersectsWithItself(const Trace &trace) const;
   State stateFromTrace(const Trace &trace) const;
-  list<int> getPossibleCones(const State &actState, const bool &isFirst) const;
-  inline bool stopCondition(const int &nextPossibleIndex, const State &state, const int &max_num_cones) const;
+  list<int> getPossibleCones(const State &actState, const bool &isFirst, const bool &isShort) const;
+  inline bool stopCondition(const int &nextPossibleIndex, const State &state, const bool &isShort) const;
   bool anyIntersection(const Trace &trace1, const Trace &trace2) const;
   Pos centroidOfTrace(Trace trace) const;
   bool validTLs(const Trace &left, const Trace &right, bool checkingLoop) const;
@@ -80,13 +80,13 @@ class Urimits {
 
   // Search
   int max_num_cones_to_consider;
-  float min_angle_between_3_cones;
+  float min_angle_loop, min_angle_short;
 
   // Heuristic
   float max_radius_to_next_cone, dist_ponderation;
 
   // Closure
-  int max_trace_length, min_trace_loop_length;
+  int min_trace_loop_length, max_short_trace_length;
 
   // Validation Conditions
   float min_percentage_of_cones, max_distSq_betw_trace_centrd;

@@ -44,15 +44,16 @@ void Urimits::run(const dv_msgs::ConeArray &data, const bool &leftOrRightFirst) 
 
   // Compute the short TLs
   if (this->compute_short_tls) {
-    computeTrace(*shortFirst, leftOrRightFirst, true, this->max_trace_length);
-    computeTraceWithCorrection(*shortSecond, *shortFirst, !leftOrRightFirst, this->max_trace_length);
+    computeTrace(*shortFirst, leftOrRightFirst, true, true);
+    //computeTrace(*shortSecond, !leftOrRightFirst, true, this->max_trace_length);
+    computeTraceWithCorrection(*shortSecond, *shortFirst, !leftOrRightFirst, true);
     this->indexesToExclude.clear();
   }
 
   // Compute the loop TLs
   if (this->compute_loop) {
-    computeTrace(*first, leftOrRightFirst, true, 1e5);
-    computeTraceWithCorrection(*second, *first, !leftOrRightFirst, 1e5);
+    computeTrace(*first, leftOrRightFirst, true, false);
+    computeTraceWithCorrection(*second, *first, !leftOrRightFirst, false);
   }
 
   // Validate the traces
@@ -139,11 +140,11 @@ bool Urimits::anyIntersection(const Trace &trace1, const Trace &trace2) const {
 /**
  * Stopping condition of the trace computing part. Returns true when a longer trace is impossible to compute.
  */
-inline bool Urimits::stopCondition(const int &nextPossibleIndex, const State &state, const int &max_num_cones) const {
+inline bool Urimits::stopCondition(const int &nextPossibleIndex, const State &state, const bool &isShort) const {
   if (isLoopClosed(state.trace))
     return true;
   else
-    return nextPossibleIndex == -1 or state.trace.size() >= max_num_cones;
+    return nextPossibleIndex == -1 or (isShort and state.trace.size() > this->max_short_trace_length);
 }
 
 /**
@@ -151,15 +152,15 @@ inline bool Urimits::stopCondition(const int &nextPossibleIndex, const State &st
  * best possible cone, until a stopping condition is found.
  * O(n²)
  */
-void Urimits::computeTrace(Trace &output, const bool &leftOrRight, bool isFirst, const int &max_num_cones) const {
+void Urimits::computeTrace(Trace &output, const bool &leftOrRight, bool isFirst, const bool &isShort) const {
   State actState(Pos(0, 0), Pos(this->first_pseudoPosition_offset, 0), M_PI);
   if (!isFirst)
     actState = stateFromTrace(output);
-  int nextPossibleIndex = nextConeIndex(actState, leftOrRight and isFirst, !leftOrRight and isFirst);
-  while (!stopCondition(nextPossibleIndex, actState, max_num_cones)) {
+  int nextPossibleIndex = nextConeIndex(actState, leftOrRight and isFirst, !leftOrRight and isFirst, isShort);
+  while (!stopCondition(nextPossibleIndex, actState, isShort)) {
     updateState(actState, nextPossibleIndex, isFirst);
     isFirst = false;
-    nextPossibleIndex = nextConeIndex(actState, leftOrRight and isFirst, !leftOrRight and isFirst);
+    nextPossibleIndex = nextConeIndex(actState, leftOrRight and isFirst, !leftOrRight and isFirst, isShort);
     //cout << "Num cons " << possibleCones.size() << endl;
   }
   //cout << actState.trace << endl;
@@ -172,17 +173,17 @@ void Urimits::computeTrace(Trace &output, const bool &leftOrRight, bool isFirst,
  * with missgiven cone, it recomputes the first one and continues with the second one.
  * At most O(n⁴), n=(num cones)
  */
-void Urimits::computeTraceWithCorrection(Trace &output, Trace &calculatedTrace, const bool &leftOrRight, const int &max_num_cones) {
+void Urimits::computeTraceWithCorrection(Trace &output, Trace &calculatedTrace, const bool &leftOrRight, const bool &isShort) {
   State actState(Pos(0, 0), Pos(this->first_pseudoPosition_offset, 0), M_PI);
   bool isFirst = true;
-  int nextPossibleIndex = nextConeIndex(actState, leftOrRight, !leftOrRight);
-  while (!stopCondition(nextPossibleIndex, actState, max_num_cones)) {
+  int nextPossibleIndex = nextConeIndex(actState, leftOrRight, !leftOrRight, isShort);
+  while (!stopCondition(nextPossibleIndex, actState, isShort)) {
     if (calculatedTrace.containsCone(nextPossibleIndex)) {
       State possibleState = actState;
       this->indexesToExclude.insert(nextPossibleIndex);
       //cout << "COLISION" << endl;
       updateState(possibleState, nextPossibleIndex, isFirst);
-      int next2PossibleIndex = nextConeIndex(possibleState, false, false);
+      int next2PossibleIndex = nextConeIndex(possibleState, false, false, isShort);
       if (next2PossibleIndex != -1) {
         updateState(possibleState, next2PossibleIndex, false);
         // we compare the angle of this cone with both the computed trace and the trace we are computing,
@@ -190,15 +191,17 @@ void Urimits::computeTraceWithCorrection(Trace &output, Trace &calculatedTrace, 
         if (abs(possibleState.trace.before().angle()) > abs(calculatedTrace.getConeIndexTrace(nextPossibleIndex).angle())) {
           // The new trace is correct, recalculate the other one
           calculatedTrace = calculatedTrace.getConeIndexTrace(nextPossibleIndex).before();
-          computeTrace(calculatedTrace, !leftOrRight, false, max_num_cones);
+          computeTrace(calculatedTrace, !leftOrRight, false, isShort);
           actState = possibleState;
         }
+      } else {
+
       }
     } else {
       updateState(actState, nextPossibleIndex, isFirst);
     }
     isFirst = false;
-    nextPossibleIndex = nextConeIndex(actState, false, false);
+    nextPossibleIndex = nextConeIndex(actState, false, false, isShort);
     //cout << "Num cons " << possibleCones.size() << endl;
   }
   //cout << actState.trace << endl;
@@ -270,8 +273,8 @@ float Urimits::getHeuristic(const Pos &nextPos, const State &actState, const boo
 /**
  * Returns the index of the cone with a smaller heuristic with respect to actState
  */
-int Urimits::nextConeIndex(const State &actState, const bool &firstLeft, const bool &firstRight) const {
-  list<int> possibleNextCones = getPossibleCones(actState, firstLeft or firstRight);
+int Urimits::nextConeIndex(const State &actState, const bool &firstLeft, const bool &firstRight, const bool &isShort) const {
+  list<int> possibleNextCones = getPossibleCones(actState, firstLeft or firstRight, isShort);
   if (possibleNextCones.empty()) return -1;
   priority_queue<pair<float, int>, vector<pair<float, int>>, greater<>> nextConesQueue;
   for (const int &possibleNextCone : possibleNextCones) {
@@ -318,7 +321,7 @@ bool Urimits::traceIntersectsWithItself(const Trace &trace) const {
 /**
  * Gets all the cone indexes which are candidates for next cone
  */
-list<int> Urimits::getPossibleCones(const State &actState, const bool &isFirst) const {
+list<int> Urimits::getPossibleCones(const State &actState, const bool &isFirst, const bool &isShort) const {
   list<int> possibleCones;
   priority_queue<pair<float, int>, vector<pair<float, int>>, greater<>> indexes_ordered_by_dist;
   for (int i = 0; i < this->allCones.size(); i++) {
@@ -340,7 +343,7 @@ list<int> Urimits::getPossibleCones(const State &actState, const bool &isFirst) 
   list<int>::iterator it = possibleCones.begin();
   while (it != possibleCones.end()) {
     float angle = Pos::angle(actState.v, actState.pos - this->allCones[*it]);
-    if (abs(angle) < this->min_angle_between_3_cones or (isFirst and this->allCones[*it].x < 0.0)) {
+    if (abs(angle) < (isShort ? this->min_angle_short : this->min_angle_loop) or (isFirst and this->allCones[*it].x < 0.0)) {
       it = possibleCones.erase(it);
     } else {
       it++;

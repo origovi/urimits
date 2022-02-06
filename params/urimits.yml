@@ -1,18 +1,21 @@
-debug:                          false    # bool, specifies whether or not to show the unvalid TLs
+debug:                          false   # bool, specifies whether or not to show the unvalid TLs
 # First
 first_pseudoPosition_offset:    0.01    # float [m]
 
 # Search
 max_num_cones_to_consider:      10      # int
-min_angle_between_3_cones:      0.4     # float [rad]
+min_angle_loop:                 0.4     # float [rad]
 
 # Heuristic
-max_radius_to_next_cone:        5.3     # float [m]
+max_radius_to_next_cone:        5.5     # float [m]
 dist_ponderation:               0.6     # float [_], assume angle_ponderation = 1-dist_ponderation
-#meters2rads_ratio:              2.0     # float [_], how many rads are equivalent to 1m in the heuristic
 
 # Closure
-min_trace_loop_length:          10      # int   [num]
+min_trace_loop_length:          10      # int [num]
+
+# Short
+min_angle_short:                1.74    # float [rad]
+max_short_trace_length:         7       # int [num]
 
 # Validation Conditions
 min_percentage_of_cones:        90.0    # float [%]
