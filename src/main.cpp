@@ -1,71 +1,32 @@
 #include <ros/ros.h>
 
-#include "Urimits.hh"
+#include "Urimits.hpp"
+#include <iostream>
 
 // Publishers are initialized here
 ros::Publisher tlPub;
 ros::Publisher lapPub;
+ros::Publisher fullMarkersPub, partialMarkersPub;
 
 // TL is initialized here
 Urimits urimits;
 
 // This is the map callback
-void callback_slam(const dv_msgs::ConeArray::ConstPtr &data) {
+void callback_ccat(const as_msgs::ConeArray::ConstPtr &data) {
   if (not data->cones.empty()) {
     auto ti = chrono::system_clock::now();
 
     urimits.run(*data, true);
-    urimits.publishData(tlPub, lapPub);
+    urimits.publishData(tlPub, lapPub, fullMarkersPub, partialMarkersPub);
 
     // Elapsed time
+    static int i = 0;
+    static double mean = 0.0;
     auto tend = chrono::system_clock::now();
     chrono::duration<double> elapsed_seconds = tend - ti;
-    ROS_WARN("Urimits ELAPSED TIME: %f ms", elapsed_seconds.count() * 1000);
-  }
-}
-#include "dv_msgs/Cone.h"
-#include "geometry_msgs/PoseArray.h"
-
-inline float distSq(const geometry_msgs::Pose &p1, const geometry_msgs::Pose &p2) {
-  return (p1.position.x - p2.position.x) * (p1.position.x - p2.position.x) + (p1.position.y - p2.position.y) * (p1.position.y - p2.position.y);
-}
-// This is the PAU callback
-void callback_pau(const geometry_msgs::PoseArray::ConstPtr &data) {
-  if (not data->poses.empty()) {
-    dv_msgs::ConeArray ca;
-    ca.header = data->header;
-    list<int> aux;
-    for (int i = 0; i < data->poses.size(); ++i) {
-      aux.push_back(i);
-    }
-    // auto it = aux.begin();
-    // while (it != aux.end()) {
-    //   auto it2 = aux.begin();
-    //   while (it2 != aux.end()) {
-    //     if (*it != *it2) {
-    //       if (distSq(data->poses[*it], data->poses[*it2]) < 0.25) {
-    //         it2 = aux.erase(it2);
-    //       } else
-    //         it2++;
-    //     } else
-    //       it2++;
-    //   }
-    //   it++;
-    // }
-    for (auto it = aux.begin(); it != aux.end(); it++) {
-      dv_msgs::Cone c;
-      c.x = data->poses[*it].position.x;
-      c.y = data->poses[*it].position.y;
-      ca.cones.push_back(c);
-    }
-    auto ti = chrono::system_clock::now();
-    urimits.run(ca, true);
-    urimits.publishData(tlPub, lapPub);
-
-    // Elapsed time
-    auto tend = chrono::system_clock::now();
-    chrono::duration<double> elapsed_seconds = tend - ti;
-    ROS_WARN("Urimits ELAPSED TIME: %f ms", elapsed_seconds.count() * 1000);
+    std::cout << i++ << ',' << elapsed_seconds.count() * 1000 << std::endl;
+    mean += elapsed_seconds.count() * 1000;
+    if (i %100 == 0) std::cout << "mean: " << mean/(i) << std::endl;
   }
 }
 
@@ -80,6 +41,12 @@ int main(int argc, char **argv) {
   nh.param<bool>("urimits/compute_short_tls", urimits.compute_short_tls, false);
   nh.param<bool>("urimits/compute_loop", urimits.compute_loop, false);
   nh.param<bool>("urimits/debug", urimits.debug, false);
+
+  std::string input_topic, output_full_topic, output_partial_topic;
+  nh.param<std::string>("urimits/input_topic", input_topic, "/AS/P/ccat/cones");
+  nh.param<std::string>("urimits/output_full_topic", output_full_topic, "/AS/P/tracklimits/full");
+  nh.param<std::string>("urimits/output_partial_topic", output_partial_topic, "/AS/P/tracklimits/partial");
+
   nh.param<float>("urimits/max_radius_to_next_cone", urimits.max_radius_to_next_cone, 5.2);
   nh.param<int>("urimits/max_num_cones_to_consider", urimits.max_num_cones_to_consider, 10);
   nh.param<float>("urimits/first_pseudoPosition_offset", urimits.first_pseudoPosition_offset, 0.5);
@@ -90,13 +57,22 @@ int main(int argc, char **argv) {
   nh.param<float>("urimits/min_angle_short", urimits.min_angle_short, 1.74);
   nh.param<int>("urimits/max_short_trace_length", urimits.max_short_trace_length, 10);
   nh.param<int>("urimits/min_trace_loop_length", urimits.min_trace_loop_length, 10);
+  nh.param<bool>("urimits/publish_markers", urimits.publish_markers, false);
 
-  // Publisher & Subscriber:
-  ros::Subscriber subMap = nh.subscribe("/cones/opt", 1, callback_slam);
-  ros::Subscriber subPau = nh.subscribe("/slam/positions", 1, callback_pau);
-  //ros::Subscriber subState = nh.subscribe("/state/car", 1, callback_state);
-  tlPub = nh.advertise<dv_msgs::ConeArrayOrdered>("/cones/ordered", 1);
-  lapPub = nh.advertise<dv_msgs::ConeArrayOrdered>("/cones/loop", 1);
+  std::string markers_full_topic, markers_partial_topic;
+  nh.param<std::string>("urimits/markers_full_topic", markers_full_topic, "/AS/P/urimits/markers/full");
+  nh.param<std::string>("urimits/markers_partial_topic", markers_partial_topic, "/AS/P/urimits/markers/partial");
+
+  // Publishers & Subscriber:
+  ros::Subscriber subMap = nh.subscribe(input_topic, 1, callback_ccat);
+
+  tlPub = nh.advertise<as_msgs::Tracklimits>(output_full_topic, 1);
+  lapPub = nh.advertise<as_msgs::Tracklimits>(output_partial_topic, 1);
+
+  if (urimits.publish_markers) {
+    fullMarkersPub = nh.advertise<visualization_msgs::MarkerArray>(markers_full_topic, 1);
+    partialMarkersPub = nh.advertise<visualization_msgs::MarkerArray>(markers_partial_topic, 1);
+  }
 
   ros::spin();
 }

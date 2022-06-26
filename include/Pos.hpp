@@ -1,3 +1,6 @@
+#ifndef POS_HPP
+#define POS_HPP
+
 #include <cmath>
 #include <iostream>
 
@@ -16,9 +19,9 @@ struct Pos {
   Pos operator+(const Pos &p) const {
     return Pos(x + p.x, y + p.y);
   }
-  template<typename T>
+  template <typename T>
   Pos operator/(const T &num) const {
-    return Pos(x/num, y/num);
+    return Pos(x / num, y / num);
   }
   // Compute the angle between two vectors
   static float angle(const Pos &ab, const Pos &cb) {
@@ -45,4 +48,17 @@ struct Pos {
   friend std::ostream &operator<<(std::ostream &os, Pos const &pos) {
     return os << "Pos(" << pos.x << ", " << pos.y << ")";
   }
+
+  const float &at(const size_t &ind) const {
+    switch (ind) {
+      case 0:
+        return x;
+      default:
+        return y;
+    }
+  }
+
+  size_t size() const { return 2; }
 };
+
+#endif  // POS_HPP

@@ -8,12 +8,14 @@
 #include <set>
 #include <vector>
 
-#include "dv_msgs/CarState.h"
-#include "dv_msgs/ConeArray.h"
-#include "dv_msgs/ConeArrayOrdered.h"
-#include "Trace.hh"
-#include "Pos.hh"
-#include "visualization_msgs/Marker.h"
+#include <as_msgs/ConeArray.h>
+#include <as_msgs/Cone.h>
+#include <as_msgs/Tracklimits.h>
+
+#include "Trace.hpp"
+#include "Pos.hpp"
+#include <visualization_msgs/Marker.h>
+#include <visualization_msgs/MarkerArray.h>
 
 using namespace std;
 
@@ -34,7 +36,7 @@ class Urimits {
   // ATTRIBUTES //
   ////////////////
   vector<Pos> allCones;
-  dv_msgs::ConeArray data;
+  as_msgs::ConeArray data;
   Trace leftTrace, rightTrace;
   Trace shortLeftTrace, shortRightTrace;
   set<int> indexesToExclude;
@@ -50,7 +52,7 @@ class Urimits {
   void computeTrace(Trace &output, const bool &leftOrRight, bool isFirst, const bool &isShort) const;
   void computeTraceWithCorrection(Trace &output, Trace &calculatedTrace, const bool &leftOrRight, const bool &isShort);
   float getHeuristic(const Pos &nextPos, const State &actState, const bool &firstLeft, const bool &firstRight) const;
-  dv_msgs::ConeArrayOrdered *getTLs(Trace left, Trace right) const;
+  as_msgs::Tracklimits *getTLs(Trace left, Trace right) const;
 
   // Aux Methods
   int nextConeIndex(const State &actState, const bool &firstLeft, const bool &firstRight, const bool &isShort) const;
@@ -91,13 +93,17 @@ class Urimits {
   // Validation Conditions
   float min_percentage_of_cones, max_distSq_betw_trace_centrd;
 
+  // Markers
+  bool publish_markers;
+
   ////////////////////
   // PUBLIC METHODS //
   ////////////////////
-  void run(const dv_msgs::ConeArray &data, const bool &leftOrRightFirst);
-  dv_msgs::ConeArrayOrdered *getLoop() const;
-  dv_msgs::ConeArrayOrdered *getShortTLs() const;
-  void publishData(const ros::Publisher &tlPub, const ros::Publisher &loopPub) const;
+  void run(const as_msgs::ConeArray &data, const bool &leftOrRightFirst);
+  as_msgs::Tracklimits *getLoop() const;
+  as_msgs::Tracklimits *getShortTLs() const;
+  void publishData(const ros::Publisher &tlPub, const ros::Publisher &loopPub, const ros::Publisher &fullMarkersPub, const ros::Publisher &partialMarkersPub) const;
+  static visualization_msgs::MarkerArray createMA(const as_msgs::Tracklimits &tls);
 };
 
 #endif

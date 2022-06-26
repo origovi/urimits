@@ -1,4 +1,9 @@
-debug:                          false   # bool, specifies whether or not to show the unvalid TLs
+debug:                          true    # bool, specifies whether or not to show the unvalid TLs
+# I/O Topics
+input_topic:                    "/AS/P/ccat/cones"
+output_full_topic:              "/AS/P/tracklimits/full"
+output_partial_topic:           "/AS/P/tracklimits/partial"
+
 # First
 first_pseudoPosition_offset:    0.01    # float [m]
 
@@ -20,3 +25,8 @@ max_short_trace_length:         7       # int [num]
 # Validation Conditions
 min_percentage_of_cones:        90.0    # float [%]
 max_distSq_betw_trace_centrd:   25.0    # float [m²]
+
+# Markers
+publish_markers:                true    # bool, whether or not to publish the markers
+markers_full_topic:             "/AS/P/urimits/markers/full"
+markers_partial_topic:          "/AS/P/urimits/markers/partial"

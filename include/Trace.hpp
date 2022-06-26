@@ -1,5 +1,5 @@
-#ifndef TRACE_HH
-#define TRACE_HH
+#ifndef TRACE_HPP
+#define TRACE_HPP
 
 #include <ros/ros.h>
 
@@ -111,4 +111,4 @@ class Trace {
   }
 };
 
-#endif
+#endif  // TRACE_HPP

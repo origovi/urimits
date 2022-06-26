@@ -1,4 +1,4 @@
-#include "Urimits.hh"
+#include "Urimits.hpp"
 
 // Namespaces
 using namespace std;
@@ -13,11 +13,11 @@ Urimits::Urimits() {
 ////////////////////
 
 /**
- * Runs the Urimits algorithm having as an input a dv_msgs::ConeArray
+ * Runs the Urimits algorithm having as an input a as_msgs::ConeArray
  * publishes the tracklimits, and if it detects a the whole track, it
  * also saves the whole tracklimits.
  */
-void Urimits::run(const dv_msgs::ConeArray &data, const bool &leftOrRightFirst) {
+void Urimits::run(const as_msgs::ConeArray &data, const bool &leftOrRightFirst) {
   if (data.cones.size() == 0) return;
   //if (data->cones.size() == 0) return;
 
@@ -26,7 +26,7 @@ void Urimits::run(const dv_msgs::ConeArray &data, const bool &leftOrRightFirst) 
   //this->data = *data;
   this->allCones.resize(this->data.cones.size());
   for (int i = 0; i < this->data.cones.size(); i++) {
-    this->allCones[i] = Pos(this->data.cones[i].x, this->data.cones[i].y);
+    this->allCones[i] = Pos(this->data.cones[i].position_baseLink.x, this->data.cones[i].position_baseLink.y);
   }
 
   Trace *first, *shortFirst, *second, *shortSecond;
@@ -67,26 +67,28 @@ void Urimits::run(const dv_msgs::ConeArray &data, const bool &leftOrRightFirst) 
   }
 }
 
-void Urimits::publishData(const ros::Publisher &tlPub, const ros::Publisher &loopPub) const {
+void Urimits::publishData(const ros::Publisher &tlPub, const ros::Publisher &loopPub, const ros::Publisher &fullMarkersPub, const ros::Publisher &partialMarkersPub) const {
   if (this->loopTLsValid) {
-    dv_msgs::ConeArrayOrdered *tls = getTLs(this->leftTrace, this->rightTrace);
-    ROS_WARN("LOOP PUBLISHED");
+    as_msgs::Tracklimits *tls = getTLs(this->leftTrace, this->rightTrace);
+    //ROS_WARN("Full-TLs PUBLISHED");
     //loopPub.publish(*tls);
     tlPub.publish(*tls);
+    fullMarkersPub.publish(createMA(*tls));
     delete tls;
   } else if (this->shortTLsValid) {
-    dv_msgs::ConeArrayOrdered *tls = getTLs(this->shortLeftTrace, this->shortRightTrace);
-    ROS_WARN("TLs PUBLISHED");
+    as_msgs::Tracklimits *tls = getTLs(this->shortLeftTrace, this->shortRightTrace);
+    //ROS_WARN("Partial-TLs PUBLISHED");
     tlPub.publish(*tls);
+    partialMarkersPub.publish(createMA(*tls));
     delete tls;
   }
 }
 
-dv_msgs::ConeArrayOrdered *Urimits::getShortTLs() const {
+as_msgs::Tracklimits *Urimits::getShortTLs() const {
   return getTLs(this->shortLeftTrace, this->shortRightTrace);
 }
 
-dv_msgs::ConeArrayOrdered *Urimits::getLoop() const {
+as_msgs::Tracklimits *Urimits::getLoop() const {
   return getTLs(this->leftTrace, this->rightTrace);
 }
 
@@ -353,27 +355,26 @@ list<int> Urimits::getPossibleCones(const State &actState, const bool &isFirst, 
 }
 
 /**
- * Returns the computed tracklimits in dv_msgs format
+ * Returns the computed tracklimits in as_msgs format
  */
-dv_msgs::ConeArrayOrdered *Urimits::getTLs(Trace left, Trace right) const {
-  dv_msgs::ConeArrayOrdered *tls = new dv_msgs::ConeArrayOrdered;
+as_msgs::Tracklimits *Urimits::getTLs(Trace left, Trace right) const {
+  as_msgs::Tracklimits *tls = new as_msgs::Tracklimits;
 
   if (left.size() >= 2) {
-    tls->blue.resize(left.size());
-    for (int i = 0; i < tls->blue.size(); ++i) {
-      tls->blue[i] = this->data.cones[left.coneIndex()];
+    tls->left.resize(left.size());
+    for (int i = 0; i < tls->left.size(); ++i) {
+      tls->left[i] = this->data.cones[left.coneIndex()];
       left = left.before();
     }
   }
   if (right.size() >= 2) {
-    tls->yellow.resize(right.size());
-    for (int i = 0; i < tls->yellow.size(); ++i) {
-      tls->yellow[i] = this->data.cones[right.coneIndex()];
+    tls->right.resize(right.size());
+    for (int i = 0; i < tls->right.size(); ++i) {
+      tls->right[i] = this->data.cones[right.coneIndex()];
       right = right.before();
     }
   }
-  tls->header = this->data.header;
-  tls->state = this->data.state;
+  tls->stamp = this->data.stamp;
   return tls;
 }
 
@@ -419,4 +420,43 @@ bool Urimits::validTLs(const Trace &left, const Trace &right, bool checkingLoop)
   if (abs(diffCentroids.x) * abs(diffCentroids.x) + abs(diffCentroids.y) * abs(diffCentroids.y) > this->max_distSq_betw_trace_centrd) return false;
 
   return true;
+}
+
+visualization_msgs::MarkerArray Urimits::createMA(const as_msgs::Tracklimits &tls) {
+  visualization_msgs::MarkerArray res;
+  res.markers.reserve(2);
+  visualization_msgs::Marker m;
+  m.type = visualization_msgs::Marker::LINE_STRIP;
+  m.action = visualization_msgs::Marker::ADD;
+  m.scale.x = 0.2;
+  m.pose.orientation.w = 1.0;
+  m.color.a = 1.0;
+  m.color.r = 0.0;
+  m.color.g = 0.6;
+  m.color.b = 0.2;
+  m.header.frame_id = "base_link";
+  m.header.stamp = tls.stamp;
+
+  m.id = 0;
+  m.points.reserve(tls.left.size());
+  geometry_msgs::Point p;
+  p.z = 0.0;
+  for (int i = 0; i < tls.left.size(); i++) {
+    p.x = tls.left[i].position_baseLink.x;
+    p.y = tls.left[i].position_baseLink.y;
+    m.points.push_back(p);
+  }
+  res.markers.push_back(m);
+
+  m.id = 1;
+  m.points.clear();
+  m.points.reserve(tls.right.size());
+  for (int i = 0; i < tls.right.size(); i++) {
+    p.x = tls.right[i].position_baseLink.x;
+    p.y = tls.right[i].position_baseLink.y;
+    m.points.push_back(p);
+  }
+  res.markers.push_back(m);
+
+  return res;
 }
