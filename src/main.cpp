@@ -18,15 +18,6 @@ void callback_ccat(const as_msgs::ConeArray::ConstPtr &data) {
 
     urimits.run(*data, true);
     urimits.publishData(tlPub, lapPub, fullMarkersPub, partialMarkersPub);
-
-    // Elapsed time
-    static int i = 0;
-    static double mean = 0.0;
-    auto tend = chrono::system_clock::now();
-    chrono::duration<double> elapsed_seconds = tend - ti;
-    std::cout << i++ << ',' << elapsed_seconds.count() * 1000 << std::endl;
-    mean += elapsed_seconds.count() * 1000;
-    if (i %100 == 0) std::cout << "mean: " << mean/(i) << std::endl;
   }
 }
 
@@ -66,8 +57,8 @@ int main(int argc, char **argv) {
   // Publishers & Subscriber:
   ros::Subscriber subMap = nh.subscribe(input_topic, 1, callback_ccat);
 
-  tlPub = nh.advertise<as_msgs::Tracklimits>(output_full_topic, 1);
-  lapPub = nh.advertise<as_msgs::Tracklimits>(output_partial_topic, 1);
+  tlPub = nh.advertise<as_msgs::Tracklimits>(output_partial_topic, 1);
+  lapPub = nh.advertise<as_msgs::Tracklimits>(output_full_topic, 1);
 
   if (urimits.publish_markers) {
     fullMarkersPub = nh.advertise<visualization_msgs::MarkerArray>(markers_full_topic, 1);

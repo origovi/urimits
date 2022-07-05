@@ -1,4 +1,4 @@
-debug:                          true    # bool, specifies whether or not to show the unvalid TLs
+debug:                          false    # bool, specifies whether or not to show the unvalid TLs
 # I/O Topics
 input_topic:                    "/AS/P/ccat/cones"
 output_full_topic:              "/AS/P/tracklimits/full"
@@ -12,7 +12,7 @@ max_num_cones_to_consider:      10      # int
 min_angle_loop:                 0.4     # float [rad]
 
 # Heuristic
-max_radius_to_next_cone:        5.5     # float [m]
+max_radius_to_next_cone:        6.5     # float [m]
 dist_ponderation:               0.6     # float [_], assume angle_ponderation = 1-dist_ponderation
 
 # Closure

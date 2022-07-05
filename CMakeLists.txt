@@ -3,10 +3,10 @@ project(urimits)
 
 add_compile_options(-std=c++14)
 
-find_package(catkin REQUIRED COMPONENTS roscpp std_msgs dv_msgs)
+find_package(catkin REQUIRED COMPONENTS roscpp std_msgs as_msgs)
 find_package(Eigen3 REQUIRED)
 
-generate_messages(DEPENDENCIES dv_msgs)
+generate_messages(DEPENDENCIES as_msgs)
 
 catkin_package(
   INCLUDE_DIRS include
@@ -23,8 +23,8 @@ add_library(${PROJECT_NAME}
   src/Urimits.cpp
 )
 
-add_dependencies(${PROJECT_NAME}_exec dv_msgs_generate_messages_cpp)
-add_dependencies(${PROJECT_NAME} dv_msgs_generate_messages_cpp)
+add_dependencies(${PROJECT_NAME}_exec as_msgs_generate_messages_cpp)
+add_dependencies(${PROJECT_NAME} as_msgs_generate_messages_cpp)
 
 target_link_libraries(${PROJECT_NAME}_exec ${catkin_LIBRARIES} ${PROJECT_NAME})
 target_link_libraries(${PROJECT_NAME} ${catkin_LIBRARIES})

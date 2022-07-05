@@ -70,16 +70,15 @@ void Urimits::run(const as_msgs::ConeArray &data, const bool &leftOrRightFirst) 
 void Urimits::publishData(const ros::Publisher &tlPub, const ros::Publisher &loopPub, const ros::Publisher &fullMarkersPub, const ros::Publisher &partialMarkersPub) const {
   if (this->loopTLsValid) {
     as_msgs::Tracklimits *tls = getTLs(this->leftTrace, this->rightTrace);
-    //ROS_WARN("Full-TLs PUBLISHED");
-    //loopPub.publish(*tls);
-    tlPub.publish(*tls);
-    fullMarkersPub.publish(createMA(*tls));
+    ROS_WARN("Full-TLs PUBLISHED");
+    loopPub.publish(*tls);
+    if (publish_markers) fullMarkersPub.publish(createMA(*tls));
     delete tls;
   } else if (this->shortTLsValid) {
     as_msgs::Tracklimits *tls = getTLs(this->shortLeftTrace, this->shortRightTrace);
-    //ROS_WARN("Partial-TLs PUBLISHED");
+    ROS_WARN("Partial-TLs PUBLISHED");
     tlPub.publish(*tls);
-    partialMarkersPub.publish(createMA(*tls));
+    if (publish_markers) partialMarkersPub.publish(createMA(*tls));
     delete tls;
   }
 }
@@ -359,6 +358,7 @@ list<int> Urimits::getPossibleCones(const State &actState, const bool &isFirst, 
  */
 as_msgs::Tracklimits *Urimits::getTLs(Trace left, Trace right) const {
   as_msgs::Tracklimits *tls = new as_msgs::Tracklimits;
+  tls->replan = 0;
 
   if (left.size() >= 2) {
     tls->left.resize(left.size());
