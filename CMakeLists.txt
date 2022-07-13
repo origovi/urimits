@@ -3,7 +3,7 @@ project(urimits)
 
 add_compile_options(-std=c++14)
 
-find_package(catkin REQUIRED COMPONENTS roscpp std_msgs as_msgs)
+find_package(catkin REQUIRED COMPONENTS roscpp std_msgs as_msgs sensor_msgs)
 find_package(Eigen3 REQUIRED)
 
 generate_messages(DEPENDENCIES as_msgs)

@@ -20,7 +20,7 @@ min_trace_loop_length:          10      # int [num]
 
 # Short
 min_angle_short:                1.74    # float [rad]
-max_short_trace_length:         7       # int [num]
+max_short_trace_length:         20      # int [num]
 
 # Validation Conditions
 min_percentage_of_cones:        90.0    # float [%]

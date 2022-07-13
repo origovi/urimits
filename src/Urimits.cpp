@@ -263,8 +263,8 @@ float Urimits::getHeuristic(const Pos &nextPos, const State &actState, const boo
   float angleHeuristic = -log(max(0.0, abs(possibleAngle / M_PI) - 0.2));
 
   // if the angle is negative, we can assume that the cone is located at the left side of the track
-  if (firstLeft and possibleAngle < 0) angleHeuristic = 0;
-  if (firstRight and possibleAngle > 0) angleHeuristic = 0;
+  if (firstLeft and possibleAngle > 0) angleHeuristic = 0;
+  if (firstRight and possibleAngle < 0) angleHeuristic = 0;
 
   float heuristic = distHeuristic * this->dist_ponderation + angleHeuristic * (1 - this->dist_ponderation);
   //cout << nextPos << ", Heur: " << heuristic << " AngleHeur: " << angleHeuristic << " Dist: " << dist << endl;
@@ -405,15 +405,13 @@ bool Urimits::validTLs(const Trace &left, const Trace &right, bool checkingLoop)
   if (left.size() < 3 or right.size() < 3) return false;
 
   // Intersection
-  if (anyIntersection(left, right)) return false;
+  if (!checkingLoop and anyIntersection(left, right)) return false;
 
-  if (checkingLoop) {
-    // Closure
-    if (!isLoopClosed(left) or !isLoopClosed(right)) return false;
-
-    // Percentage of cones taken
-    if (((left.size() + right.size()) / this->allCones.size()) * 100 < this->min_percentage_of_cones) return false;
-  }
+  // Closure
+  if (checkingLoop and (!isLoopClosed(left) or !isLoopClosed(right))) return false;
+  
+  // Percentage of cones taken
+  // if (!checkingLoop and ((left.size() + right.size()) / this->allCones.size()) * 100 < this->min_percentage_of_cones) return false;
 
   // Centroids
   Pos diffCentroids = centroidOfTrace(left) - centroidOfTrace(right);
