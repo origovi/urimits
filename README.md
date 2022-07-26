@@ -63,6 +63,6 @@ to the trace.
 With this mechanism, Urimits makes sure that no trace takes other trace’s cones.
 
 <p align="center">
-  <img src="./assets/urimits.png" alt="Urimits closing the lap" width="200"/><br />
+  <img src="./assets/urimits.png" alt="Urimits closing the lap" width="400"/><br />
   Urimits closing the lap before the car reaches the finish line.
 </p>
